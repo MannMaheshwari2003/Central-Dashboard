@@ -1,0 +1,32 @@
+{
+  "name": "food-pds-dashboard-backend",
+  "version": "5.0.0",
+  "description": "SQLite-backed API server for the DFPD national food and public distribution MIS dashboard.",
+  "main": "server.js",
+  "author": "Department of Food & Public Distribution",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "validate-data": "node scripts/validate-data.js",
+    "seed-db": "node scripts/seed-db.js",
+    "check-db": "node scripts/check-db.js"
+  },
+  "keywords": [
+    "government",
+    "dashboard",
+    "food-security",
+    "nfsa",
+    "public-distribution"
+  ],
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "helmet": "^8.1.0",
+    "express-rate-limit": "^8.0.1"
+  }
+}
