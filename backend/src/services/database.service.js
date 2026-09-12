@@ -164,6 +164,24 @@ function getGeoJson(id = 'india-states') {
   }
 }
 
+function getAvailableMonths() {
+  init();
+  try {
+    const rows = db.prepare("SELECT DISTINCT data_month FROM central_pool_stocks WHERE data_month IS NOT NULL AND data_month != ''").all();
+    const months = rows.map(r => r.data_month);
+    // Custom month sorting order if standard month names
+    const order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    months.sort((a, b) => {
+      const ia = order.indexOf(a), ib = order.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      return a.localeCompare(b);
+    });
+    return months;
+  } catch (_) {
+    return ['June', 'July'];
+  }
+}
+
 function clearDatabase() {
   init();
   TABLE_REGISTRY.forEach(t => {
@@ -179,6 +197,7 @@ module.exports = {
   getDataset,
   queryDataset,
   getGeoJson,
+  getAvailableMonths,
   clearDatabase,
   TABLE_REGISTRY
 };

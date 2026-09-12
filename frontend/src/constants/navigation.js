@@ -1,10 +1,11 @@
 /**
- * constants/navigation.js — the top-nav / route table lives here so
- * TopNav.jsx, Footer.jsx and App.jsx all reference the same list instead
- * of duplicating it.
+ * constants/navigation.js — top-nav / route table
  */
 export const NAV_ITEMS = [
-  { path: "/", label: "Dashboard", icon: "fa-tachometer" },
+  { path: "/", label: "Dashboard Overview", icon: "fa-tachometer" },
+  { path: "/unitary-comparison", label: "Unitary Comparison Engine", icon: "fa-calculator" },
+  { path: "/mom-comparison", label: "MoM Comparison", icon: "fa-exchange" },
+  { path: "/permutations", label: "Dynamic Permutations", icon: "fa-sliders" },
   { path: "/production", label: "Production", icon: "fa-leaf" },
   { path: "/relief", label: "Relief Allocation", icon: "fa-ambulance" },
   { path: "/stock", label: "Stock Position", icon: "fa-cubes" },
@@ -14,6 +15,6 @@ export const NAV_ITEMS = [
   { path: "/distribution", label: "Distribution", icon: "fa-line-chart" },
   { path: "/trade", label: "Export / Import", icon: "fa-globe" },
   { path: "/map", label: "State Map", icon: "fa-map-marker" },
-  { path: "/state-intelligence", label: "State Intelligence", icon: "fa-line-chart" },
+  { path: "/state-intelligence", label: "State Intelligence", icon: "fa-building" },
   { path: "/explorer", label: "Data Explorer", icon: "fa-database" },
 ];

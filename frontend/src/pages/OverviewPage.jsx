@@ -5,25 +5,27 @@ import { useKpis } from "../hooks/useDataset.js";
 import { api } from "../api/client.js";
 import { useAsync } from "../hooks/useAsync.js";
 import { fmt } from "../utils/format.js";
+import { useMonth } from "../context/MonthContext.jsx";
 
 export default function OverviewPage() {
+  const { selectedMonth } = useMonth();
   const { data: kpis, error: kErr, loading: kLoading } = useKpis();
-  const { data: overview, error: oErr, loading: oLoading } = useAsync(() => api.getAnalyticsOverview(), []);
-  const { data: statesRes, error: sErr, loading: sLoading } = useAsync(() => api.getAnalyticsStates(), []);
+  const { data: overview, error: oErr, loading: oLoading } = useAsync(() => api.getAnalyticsOverview({ month: selectedMonth }), [selectedMonth]);
+  const { data: statesRes, error: sErr, loading: sLoading } = useAsync(() => api.getAnalyticsStates({ month: selectedMonth }), [selectedMonth]);
 
   const states = statesRes?.data || [];
 
   const err = kErr || oErr || sErr;
   if (err) return <ErrorBox msg={err} />;
   if (kLoading || oLoading || sLoading || !kpis || !overview) {
-    return <Loading label="Loading national summary & analytics..." />;
+    return <Loading label={`Loading ${selectedMonth} 2026 national summary & analytics...`} />;
   }
 
   const prodDelta = kpis.production_prev_value_mt ? (((kpis.production_latest_value_mt - kpis.production_prev_value_mt) / kpis.production_prev_value_mt) * 100).toFixed(1) : null;
   const offtakeRate = kpis.fy2627_allocation_lakh ? ((kpis.fy2627_offtake_lakh / kpis.fy2627_allocation_lakh) * 100).toFixed(1) : null;
 
   const kpiItems = [
-    { label: "Central Pool Stock (Total)", value: fmt.num(kpis.total_central_pool_stock_lmt, 1), unit: "Lakh MT", icon: "fa-cubes", accent: "navy", foot: "As on " + kpis.stock_as_on },
+    { label: `Central Pool Stock (${selectedMonth})`, value: fmt.num(overview.stock?.latest_total_lmt || kpis.total_central_pool_stock_lmt, 1), unit: "Lakh MT", icon: "fa-cubes", accent: "navy", foot: `Data month: ${selectedMonth} 2026` },
     { label: "NFSA Persons Covered", value: fmt.num(kpis.nfsa_persons_covered_lakh / 100, 2), unit: "Crore", icon: "fa-users", accent: "saffron", foot: (kpis.nfsa_pct_accepted || 67.2) + "% of total population" },
     {
       label: `Foodgrain Production ${kpis.production_latest_year}`,
@@ -37,8 +39,8 @@ export default function OverviewPage() {
     { label: `Procurement ${kpis.procurement_year} (Rice+Wheat)`, value: fmt.num((kpis.procurement_rice_lakh || 0) + (kpis.procurement_wheat_lakh || 0), 1), unit: "Lakh T", icon: "fa-shopping-basket", accent: "warn", foot: "KMS + RMS total" },
     { label: "FY 2026-27 Allocation", value: fmt.num(kpis.fy2627_allocation_lakh, 1), unit: "Lakh T", icon: "fa-truck", accent: "navy", foot: "All schemes, Central Pool" },
     { label: "FY 2026-27 Offtake Rate", value: (offtakeRate || "0") + "%", icon: "fa-check-circle", accent: Number(offtakeRate) > 70 ? "green" : "warn", foot: fmt.num(kpis.fy2627_offtake_lakh, 1) + " Lakh T lifted" },
-    { label: "Wheat Stock in Pool", value: fmt.num(kpis.total_stock_wheat_lmt, 1), unit: "Lakh MT", icon: "fa-database", accent: "saffron", foot: "FCI + State Agencies" },
-    { label: "Rice Stock in Pool", value: fmt.num(kpis.total_stock_rice_lmt, 1), unit: "Lakh MT", icon: "fa-database", accent: "green", foot: "FCI + State Agencies" },
+    { label: `Wheat Stock (${selectedMonth})`, value: fmt.num(overview.stock?.latest_wheat_lmt || kpis.total_stock_wheat_lmt, 1), unit: "Lakh MT", icon: "fa-database", accent: "saffron", foot: "FCI + State Agencies" },
+    { label: `Rice Stock (${selectedMonth})`, value: fmt.num(overview.stock?.latest_rice_lmt || kpis.total_stock_rice_lmt, 1), unit: "Lakh MT", icon: "fa-database", accent: "green", foot: "FCI + State Agencies" },
   ];
 
   // Stock trend chart
@@ -47,9 +49,9 @@ export default function OverviewPage() {
   const stockTrendData = {
     labels: recentStock.map((r) => r.date),
     datasets: [
-      { label: "Wheat Stock", data: recentStock.map((r) => r.wheat_actual), borderColor: GOV_PALETTE[1], backgroundColor: GOV_PALETTE[1] + "22", tension: 0.3, fill: true, pointRadius: 0 },
-      { label: "Rice Stock", data: recentStock.map((r) => r.rice_actual), borderColor: GOV_PALETTE[2], backgroundColor: GOV_PALETTE[2] + "22", tension: 0.3, fill: true, pointRadius: 0 },
-      { label: "Total Stock", data: recentStock.map((r) => r.total_actual), borderColor: GOV_PALETTE[0], backgroundColor: "transparent", tension: 0.3, borderWidth: 2.5, pointRadius: 0 },
+      { label: "Wheat Stock", data: recentStock.map((r) => r.wheat_actual || 0), borderColor: GOV_PALETTE[1], backgroundColor: GOV_PALETTE[1] + "22", tension: 0.3, fill: true, pointRadius: 0 },
+      { label: "Rice Stock", data: recentStock.map((r) => r.rice_actual || 0), borderColor: GOV_PALETTE[2], backgroundColor: GOV_PALETTE[2] + "22", tension: 0.3, fill: true, pointRadius: 0 },
+      { label: "Total Stock", data: recentStock.map((r) => r.total_actual || ((r.wheat_actual || 0) + (r.rice_actual || 0))), borderColor: GOV_PALETTE[0], backgroundColor: "transparent", tension: 0.3, borderWidth: 2.5, pointRadius: 0 },
     ],
   };
 
@@ -105,7 +107,7 @@ export default function OverviewPage() {
   const topProcState = topProcStates[0];
 
   const glanceItems = [
-    { label: "Leading State — Stock Held", value: topStockState?.state || "N/A", foot: fmt.num(topStockState?.central_stock_lmt, 1) + " Lakh MT in Central Pool" },
+    { label: "Leading State — Stock Held", value: topStockState?.state || "N/A", foot: fmt.num(topStockState?.central_stock_lmt, 1) + ` Lakh MT (${selectedMonth})` },
     { label: "Leading State — Coverage %", value: topCoverageState?.state || "N/A", foot: fmt.pct(topCoverageState?.nfsa_coverage_pct) + " of population covered" },
     { label: "Top Procuring State", value: topProcState?.state || "N/A", foot: fmt.num(topProcState?.procurement_total_lakh, 1) + " Lakh MT, " + kpis.procurement_year },
     { label: "National Allocation Offtake", value: (overview.allocation_offtake?.current?.rate_pct || 0) + "%", foot: "Overall utilization rate" }
@@ -113,15 +115,18 @@ export default function OverviewPage() {
 
   return (
     <div>
-      <PageHeader title="Central Dashboard Overview" subtitle="National Food & Public Distribution System (DFPD) Analytics" />
+      <PageHeader
+        title={`Central Dashboard Overview — ${selectedMonth} 2026`}
+        subtitle={`National Food & Public Distribution System (DFPD) Analytics for ${selectedMonth} 2026`}
+      />
 
-      <SectionTitle>Key Performance Indicators</SectionTitle>
+      <SectionTitle>Key Performance Indicators ({selectedMonth} 2026)</SectionTitle>
       <KpiGrid items={kpiItems} colMd={3} colSm={6} />
 
-      <SectionTitle>At a Glance</SectionTitle>
+      <SectionTitle>At a Glance ({selectedMonth} 2026)</SectionTitle>
       <div className="row-eq">
         <div className="col-md-12 col-xs-12">
-          <Panel title="National Performance Indicators" sub="Real-time aggregation from multi-table SQLite database" badge="Live">
+          <Panel title={`National Performance Indicators — ${selectedMonth} 2026`} sub="Real-time aggregation from multi-month SQLite database" badge={selectedMonth}>
             <div className="stat-grid stat-grid-4">
               {glanceItems.map((g) => (
                 <MiniStat key={g.label} label={g.label} value={g.value} />
@@ -141,7 +146,7 @@ export default function OverviewPage() {
       <SectionTitle>Trends &amp; Composition</SectionTitle>
       <div className="row-eq">
         <div className="col-md-7 col-xs-12">
-          <Panel title="Central Pool Stock Trend" sub="Wheat, Rice, and Total Stock Position" badge="Lakh MT">
+          <Panel title="Central Pool Stock Position" sub="Wheat, Rice, and Total Stock Position" badge="Lakh MT">
             <LineChart data={stockTrendData} height={215} />
           </Panel>
         </div>
