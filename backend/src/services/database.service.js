@@ -82,10 +82,25 @@ function getAllMetadata() {
   return listDatasets().map(d => getDatasetMeta(d.id));
 }
 
-function getDataset(tableName) {
+function getDataset(tableName, month) {
   init();
   if (!isValidTable(tableName)) return null;
-  const rows = db.prepare(`SELECT * FROM ${tableName} ORDER BY id`).all();
+  let whereClause = '';
+  const params = [];
+  if (month && month !== 'all') {
+    try {
+      const colCheck = db.prepare(`PRAGMA table_info(${tableName})`).all();
+      const hasMonth = colCheck.some(c => c.name === 'data_month');
+      if (hasMonth) {
+        const cnt = db.prepare(`SELECT COUNT(*) AS c FROM ${tableName} WHERE LOWER(data_month) = ?`).get(month.toLowerCase())?.c || 0;
+        if (cnt > 0) {
+          whereClause = `WHERE LOWER(data_month) = ?`;
+          params.push(month.toLowerCase());
+        }
+      }
+    } catch (_) {}
+  }
+  const rows = db.prepare(`SELECT * FROM ${tableName} ${whereClause} ORDER BY id`).all(...params);
   return { rows };
 }
 

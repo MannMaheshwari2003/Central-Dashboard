@@ -26,7 +26,10 @@ export const api = {
     const query = new URLSearchParams(params).toString();
     return get(`/api/data/${encodeURIComponent(id)}/query?${query}`, { useCache: false });
   },
-  getKpis: () => get("/api/kpis", { useCache: false }),
+  getKpis: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return get(`/api/kpis${q ? '?' + q : ''}`, { useCache: false });
+  },
   getGeoIndia: () => get("/api/geo/india-states"),
   getStateInfo: (name, params = {}) => get(`/api/state/${encodeURIComponent(name)}?${new URLSearchParams(params).toString()}`, { useCache: false }),
   getAnalyticsOverview: (params = {}) => get(`/api/analytics/overview?${new URLSearchParams(params).toString()}`, { useCache: false }),

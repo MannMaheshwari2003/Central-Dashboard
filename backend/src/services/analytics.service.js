@@ -706,6 +706,61 @@ function unitaryAspectAnalytics(stateName = 'All India', metric = 'total_stock',
     insights.push(`All-India aggregate volume stood at ${tVal.toLocaleString()} ${def.unit} in ${tMonth} 2026 versus ${bVal.toLocaleString()} ${def.unit} in ${bMonth} 2026.`);
   }
 
+  const topStates = [...tSummary]
+    .sort((x, y) => getMetricVal(y, metric) - getMetricVal(x, metric))
+    .slice(0, 10)
+    .map((r, idx) => ({
+      rank: idx + 1,
+      state: r.state,
+      value: round(getMetricVal(r, metric), 2),
+      share_pct: tNatTotal ? round((getMetricVal(r, metric) / tNatTotal) * 100, 1) : 0,
+      is_selected: r.state.toLowerCase() === stateName.toLowerCase()
+    }));
+
+  const CORE_METRICS = [
+    { id: 'total_stock', label: 'Central Pool Total Stock', unit: 'Lakh MT', category: 'Stock & Storage' },
+    { id: 'wheat_stock', label: 'Wheat in Central Pool', unit: 'Lakh MT', category: 'Stock & Storage' },
+    { id: 'rice_stock', label: 'Rice in Central Pool', unit: 'Lakh MT', category: 'Stock & Storage' },
+    { id: 'fci_stock', label: 'Stock with FCI', unit: 'Lakh MT', category: 'Stock & Storage' },
+    { id: 'state_agency_stock', label: 'Stock with State Agencies', unit: 'Lakh MT', category: 'Stock & Storage' },
+    { id: 'paddy_stock', label: 'Paddy in Stock', unit: 'Lakh MT', category: 'Stock & Storage' },
+    { id: 'total_procurement', label: 'Total Grain Procurement', unit: 'Lakh MT', category: 'Procurement' },
+    { id: 'wheat_procurement', label: 'Wheat Procurement', unit: 'Lakh MT', category: 'Procurement' },
+    { id: 'rice_procurement', label: 'Rice Procurement', unit: 'Lakh MT', category: 'Procurement' },
+    { id: 'annual_nfsa_allocation', label: 'Annual NFSA Allocation', unit: 'KT', category: 'Allocation & Offtake' },
+    { id: 'aay_allocation', label: 'AAY (Antyodaya) Allocation', unit: 'KT', category: 'Allocation & Offtake' },
+    { id: 'phh_allocation', label: 'PHH (Priority HH) Allocation', unit: 'KT', category: 'Allocation & Offtake' },
+    { id: 'offtake_total', label: 'Period Offtake Lifted', unit: 'KT', category: 'Allocation & Offtake' },
+    { id: 'offtake_rate', label: 'Offtake Utilization Rate', unit: '%', category: 'Allocation & Offtake' },
+    { id: 'fps_count', label: 'Active Fair Price Shops', unit: 'Outlets', category: 'Infrastructure & PDS' },
+    { id: 'portability_txns', label: 'ONORC Portability Txns', unit: 'Txns', category: 'Infrastructure & PDS' },
+    { id: 'buffer_coverage', label: 'Buffer Supply Coverage', unit: 'Months', category: 'Derived Intelligence' },
+  ];
+
+  const allMetricsComparison = CORE_METRICS.map(m => {
+    let vA = 0, vB = 0;
+    if (isAllIndia) {
+      vA = bSummary.reduce((s, r) => s + getMetricVal(r, m.id), 0);
+      vB = tSummary.reduce((s, r) => s + getMetricVal(r, m.id), 0);
+    } else {
+      vA = getMetricVal(bStateObj, m.id);
+      vB = getMetricVal(tStateObj, m.id);
+    }
+    const d = round(vB - vA, 2);
+    const dPct = vA ? round(((vB - vA) / vA) * 100, 1) : null;
+    return {
+      id: m.id,
+      label: m.label,
+      category: m.category,
+      unit: m.unit,
+      base_value: round(vA, 2),
+      target_value: round(vB, 2),
+      delta: d,
+      delta_pct: dPct,
+      direction: d > 0 ? 'increase' : d < 0 ? 'decrease' : 'stable'
+    };
+  });
+
   return {
     state: entityName,
     metric_id: metric,
@@ -726,7 +781,11 @@ function unitaryAspectAnalytics(stateName = 'All India', metric = 'total_stock',
     target_national_share_pct: tShare,
     national_share_delta_pct: shareDelta,
     multi_month_trend: multiMonthTrend,
-    hidden_insights: insights
+    hidden_insights: insights,
+    top_states: topStates,
+    all_metrics_comparison: allMetricsComparison,
+    base_state_profile: bStateObj || null,
+    target_state_profile: tStateObj || null
   };
 }
 

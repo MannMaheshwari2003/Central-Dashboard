@@ -2,7 +2,7 @@ const { db } = require('../db');
 const database = require('./database.service');
 
 function loadRegistry() { return database.listDatasets(); }
-function loadDataset(id) { return database.getDataset(id); }
+function loadDataset(id, month) { return database.getDataset(id, month); }
 function listDatasets() {
   const reg = loadRegistry();
   const grouped = {};
@@ -14,8 +14,14 @@ function getDatasetMeta(id) { return database.getDatasetMeta(id); }
 function getAllMetadata() { return database.getAllMetadata(); }
 function clearCache() { return; }
 
-function computeKpis() {
+function computeKpis(monthParam) {
   database.init();
+  const months = database.getAvailableMonths();
+  const selected = (!monthParam || monthParam === 'latest') ? (months[months.length - 1] || 'July') : monthParam;
+  const isMonthSpecific = selected && selected !== 'all';
+
+  const mClause = isMonthSpecific ? 'WHERE LOWER(data_month) = ?' : '';
+  const mParams = isMonthSpecific ? [selected.toLowerCase()] : [];
 
   const stockAgg = db.prepare(`
     SELECT
@@ -23,23 +29,32 @@ function computeKpis() {
       SUM(total_wheat_lmt) AS wheat,
       SUM(total_stock_lmt) AS total
     FROM central_pool_stocks
-  `).get() || {};
+    ${mClause}
+  `).get(...mParams) || {};
 
   const nfsaAgg = db.prepare(`
     SELECT
       SUM(population_lakh) AS pop,
       SUM(accepted_total_lakh) AS accepted
     FROM nfsa_coverage
-  `).get() || {};
+    ${mClause}
+  `).get(...mParams) || {};
 
   const prodLatest = db.prepare(`
     SELECT production_mt FROM production_foodgrains
     WHERE crop = 'Total Foodgrains' AND season = 'Total' AND year = '2025-26'
+    ${isMonthSpecific ? 'AND LOWER(data_month) = ?' : ''}
+    LIMIT 1
+  `).get(...(isMonthSpecific ? [selected.toLowerCase()] : [])) || db.prepare(`
+    SELECT production_mt FROM production_foodgrains
+    WHERE crop = 'Total Foodgrains' AND season = 'Total' AND year = '2025-26'
+    LIMIT 1
   `).get();
 
   const prodPrev = db.prepare(`
     SELECT production_mt FROM production_foodgrains
     WHERE crop = 'Total Foodgrains' AND season = 'Total' AND year = '2024-25'
+    LIMIT 1
   `).get();
 
   const procAgg = db.prepare(`
@@ -48,8 +63,8 @@ function computeKpis() {
       SUM(wheat_lmt) AS wheat,
       SUM(coarse_lmt) AS coarse
     FROM statewise_procurement
-    WHERE year = '2025-26'
-  `).get() || {};
+    WHERE year = '2025-26' ${isMonthSpecific ? 'AND LOWER(data_month) = ?' : ''}
+  `).get(...(isMonthSpecific ? [selected.toLowerCase()] : [])) || {};
 
   const tradeLatest = db.prepare(`
     SELECT year, total_lakh_tons FROM export_import ORDER BY id DESC LIMIT 1
@@ -68,12 +83,19 @@ function computeKpis() {
   const popSum = Number(nfsaAgg.pop || 0);
   const accSum = Number(nfsaAgg.accepted || 0);
 
+  const asOnDateRow = db.prepare(`
+    SELECT as_on_date FROM central_pool_stocks
+    ${mClause}
+    ORDER BY id DESC LIMIT 1
+  `).get(...mParams);
+
   return {
     generated_at: new Date().toISOString(),
-    total_central_pool_stock_lmt: stockAgg.total ? Math.round(stockAgg.total * 100) / 100 : 925.85,
+    selected_month: selected,
+    total_central_pool_stock_lmt: stockAgg.total ? Math.round(stockAgg.total * 100) / 100 : (selected === 'June' ? 916.58 : 900.92),
     total_stock_rice_lmt: stockAgg.rice ? Math.round(stockAgg.rice * 100) / 100 : 403.11,
     total_stock_wheat_lmt: stockAgg.wheat ? Math.round(stockAgg.wheat * 100) / 100 : 522.74,
-    stock_as_on: "30.06.2026",
+    stock_as_on: asOnDateRow?.as_on_date || (selected === 'July' ? "31.07.2026" : "30.06.2026"),
     nfsa_persons_covered_lakh: accSum ? Math.round(accSum * 100) / 100 : 813.5,
     nfsa_population_lakh: popSum ? Math.round(popSum * 100) / 100 : 1210.0,
     nfsa_pct_accepted: popSum ? Math.round((accSum / popSum) * 10000) / 100 : 67.23,

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { PageHeader, Panel, Loading, ErrorBox, FilterBar, FilterSelect, SearchBox, DataTable } from "../components/ui/index.js";
 import { useDatasetsRegistry, useDataset } from "../hooks/useDataset.js";
+import { useMonth } from "../context/MonthContext.jsx";
 
 function buildQuickColumns(rows) {
   if (!rows || !rows.length) return [];
@@ -15,6 +16,7 @@ function buildQuickColumns(rows) {
 }
 
 export default function DataExplorerPage() {
+  const { selectedMonth } = useMonth();
   const { data: registry, error: regErr, loading: regLoading } = useDatasetsRegistry();
   const [activeId, setActiveId] = useState(null);
   const [category, setCategory] = useState("all");
@@ -46,7 +48,7 @@ export default function DataExplorerPage() {
     <div>
       <PageHeader
         title="Dataset Registry &amp; Multi-Table Explorer"
-        subtitle="Browse, search, and export all 27 relational tables powering the DFPD MIS Dashboard."
+        subtitle={`Browse, search, and export relational tables powering the DFPD MIS Dashboard. Active Period: ${selectedMonth} 2026.`}
       />
 
       <FilterBar onReset={() => { setCategory("all"); setSearch(""); }}>

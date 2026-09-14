@@ -4,7 +4,7 @@ const datasetService = require("../services/dataset.service");
 
 function getDatasets(req,res){ res.json(datasetService.listDatasets()); }
 function getDatasetById(req,res){
-  const data = datasetService.loadDataset(req.params.id);
+  const data = datasetService.loadDataset(req.params.id, req.query.month);
   if (!data) return res.status(404).json({error:`Dataset not found: ${req.params.id}`});
   res.json(data);
 }
@@ -40,7 +40,7 @@ function getMetadata(req,res){
 }
 function getAllMetadata(req,res){res.json({generated_at:new Date().toISOString(),datasets:datasetService.getAllMetadata()});}
 function getGeoIndiaStates(req,res){ const geo = databaseService.getGeoJson("india-states"); if(!geo) return res.status(404).json({error:"India states geometry not found in database"}); res.json(geo); }
-function getKpis(req,res){try{res.json(datasetService.computeKpis())}catch(e){res.status(500).json({error:"KPI computation failed",detail:e.message})}}
+function getKpis(req,res){try{res.json(datasetService.computeKpis(req.query.month))}catch(e){res.status(500).json({error:"KPI computation failed",detail:e.message})}}
 function getStateInfo(req,res){const info=datasetService.getStateInfo(req.params.name);if(!info)return res.status(404).json({error:`No consolidated data found for state: ${req.params.name}`});res.json(info)}
 function refresh(req,res){
   const expected = process.env.ADMIN_REFRESH_TOKEN;

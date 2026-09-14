@@ -15,6 +15,10 @@ export default function DynamicPermutationsPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (selectedMonth) setMonthFilter(selectedMonth);
+  }, [selectedMonth]);
+
+  useEffect(() => {
     async function fetchPermutations() {
       try {
         setLoading(true);

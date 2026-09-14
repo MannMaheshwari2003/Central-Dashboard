@@ -4,11 +4,34 @@ const MonthContext = createContext();
 
 export function MonthProvider({ children }) {
   const [availableMonths, setAvailableMonths] = useState(["June", "July"]);
-  const [selectedMonth, setSelectedMonth] = useState("July");
+  const [selectedMonth, setSelectedMonthState] = useState(() => {
+    try {
+      return localStorage.getItem("food_pds_selected_month") || "July";
+    } catch (_) {
+      return "July";
+    }
+  });
   const [baseMonth, setBaseMonth] = useState("June");
-  const [targetMonth, setTargetMonth] = useState("July");
+  const [targetMonth, setTargetMonth] = useState(() => {
+    try {
+      const saved = localStorage.getItem("food_pds_selected_month");
+      return (saved && saved !== "all") ? saved : "July";
+    } catch (_) {
+      return "July";
+    }
+  });
   const [loadingMonths, setLoadingMonths] = useState(true);
   const [isReingesting, setIsReingesting] = useState(false);
+
+  const setSelectedMonth = (m) => {
+    setSelectedMonthState(m);
+    try {
+      localStorage.setItem("food_pds_selected_month", m);
+    } catch (_) {}
+    if (m && m !== "all") {
+      setTargetMonth(m);
+    }
+  };
 
   const fetchMonths = async () => {
     try {
@@ -18,8 +41,12 @@ export function MonthProvider({ children }) {
         const data = await res.json();
         if (data.months && data.months.length) {
           setAvailableMonths(data.months);
-          if (!data.months.includes(selectedMonth)) {
-            setSelectedMonth(data.latest || data.months[data.months.length - 1]);
+          const saved = localStorage.getItem("food_pds_selected_month");
+          if (saved && (data.months.includes(saved) || saved === "all")) {
+            setSelectedMonthState(saved);
+          } else if (!data.months.includes(selectedMonth)) {
+            const fallback = data.latest || data.months[data.months.length - 1];
+            setSelectedMonthState(fallback);
           }
           if (data.months.length >= 2) {
             setBaseMonth(data.months[0]);
