@@ -7,3 +7,5 @@ export { Loading, ErrorBox, PctBadge } from "./Feedback.jsx";
 export { default as DataTable } from "./DataTable.jsx";
 export { default as ExportCsvButton } from "./ExportCsvButton.jsx";
 export { DetailRow, RankPill, DeltaTag, MiniStat, Pill } from "./Stat.jsx";
+export { default as KpiDetailModal } from "./KpiDetailModal.jsx";
+

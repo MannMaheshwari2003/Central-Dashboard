@@ -3,8 +3,7 @@
  */
 export const NAV_ITEMS = [
   { path: "/", label: "Dashboard Overview", icon: "fa-tachometer" },
-  { path: "/unitary-comparison", label: "Unitary Comparison Engine", icon: "fa-calculator" },
-  { path: "/mom-comparison", label: "MoM Comparison", icon: "fa-exchange" },
+  { path: "/comparison-engine", label: "Comparison Engine", icon: "fa-calculator" },
   { path: "/permutations", label: "Dynamic Permutations", icon: "fa-sliders" },
   { path: "/production", label: "Production", icon: "fa-leaf" },
   { path: "/relief", label: "Relief Allocation", icon: "fa-ambulance" },

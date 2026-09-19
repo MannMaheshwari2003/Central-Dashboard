@@ -20,12 +20,14 @@ function resolveMonth(monthParam) {
   return found || months[months.length - 1];
 }
 
-function aggregateProduction(monthParam) {
+function aggregateProduction() {
   database.init();
   const rows = db.prepare(`
-    SELECT year, production_mt FROM production_foodgrains
-    WHERE crop = 'Total Foodgrains' AND season = 'Total'
-    ORDER BY id ASC
+    SELECT year, MAX(production_mt) AS production_mt
+    FROM production_foodgrains
+    WHERE crop = 'Total Foodgrains' AND season = 'Total' AND production_mt > 0
+    GROUP BY year
+    ORDER BY year ASC
   `).all();
 
   return rows.map((r, i) => {
@@ -39,58 +41,110 @@ function aggregateProduction(monthParam) {
   });
 }
 
-function productionDetail() {
+function productionDetail(monthParam) {
   database.init();
-  const latestYearRow = db.prepare(`SELECT year FROM production_foodgrains ORDER BY id DESC LIMIT 1`).get();
-  const latest = latestYearRow?.year || '2025-26';
-  const prevYearRow = db.prepare(`SELECT DISTINCT year FROM production_foodgrains ORDER BY id DESC LIMIT 1 OFFSET 1`).get();
-  const previous = prevYearRow?.year || '2024-25';
+  const selected = resolveMonth(monthParam);
+  const monthSql = selected !== 'all' ? ' AND data_month = ?' : '';
+  const monthParams = selected !== 'all' ? [selected] : [];
+
+  const latestYearRow = db.prepare(`
+    SELECT year
+    FROM production_foodgrains
+    WHERE crop = 'Total Foodgrains'
+      AND season = 'Total'
+      AND production_mt > 0
+      ${monthSql}
+    ORDER BY year DESC
+    LIMIT 1
+  `).get(...monthParams);
+
+  const latest = latestYearRow?.year || null;
+  if (!latest) return { latest_year: null, previous_year: null, latest_total_mt: 0, by_crop: [], seasons: [], crop_share: [], commodity_breakdown: {} };
+
+  const previousYearRow = db.prepare(`
+    SELECT DISTINCT year
+    FROM production_foodgrains
+    WHERE crop = 'Total Foodgrains'
+      AND season = 'Total'
+      AND production_mt > 0
+      AND year <> ?
+      ${monthSql}
+    ORDER BY year DESC
+    LIMIT 1
+  `).get(latest, ...monthParams);
+  const previous = previousYearRow?.year || null;
+
+  const getProduction = (crop, season, year) => {
+    if (!year) return 0;
+    const row = db.prepare(`
+      SELECT MAX(production_mt) AS value
+      FROM production_foodgrains
+      WHERE crop = ? AND season = ? AND year = ?
+        AND production_mt > 0
+        ${monthSql}
+    `).get(crop, season, year, ...monthParams);
+    return num(row?.value);
+  };
+
+  const totalFoodgrains = getProduction('Total Foodgrains', 'Total', latest);
+  const previousTotal = getProduction('Total Foodgrains', 'Total', previous);
 
   const crops = ['Rice', 'Wheat', 'Coarse Grains', 'Pulses'];
   const byCrop = crops.map(crop => {
-    const curr = db.prepare(`SELECT SUM(production_mt) AS s FROM production_foodgrains WHERE crop = ? AND year = ? AND season != 'Total'`).get(crop, latest);
-    const prev = db.prepare(`SELECT SUM(production_mt) AS s FROM production_foodgrains WHERE crop = ? AND year = ? AND season != 'Total'`).get(crop, previous);
-    const cVal = num(curr?.s);
-    const pVal = num(prev?.s);
+    const kharif = getProduction(crop, 'Kharif', latest);
+    const rabi = getProduction(crop, 'Rabi', latest);
+    const summer = getProduction(crop, 'Summer', latest);
+    const latestValue = kharif + rabi + summer;
+    const prevValue = previous
+      ? getProduction(crop, 'Kharif', previous) + getProduction(crop, 'Rabi', previous) + getProduction(crop, 'Summer', previous)
+      : 0;
     return {
       crop,
       latest_year: latest,
-      latest_mt: round(cVal, 2),
-      previous_mt: round(pVal, 2),
-      yoy_growth_pct: pVal ? round(pct(cVal - pVal, pVal), 2) : null
+      latest_mt: round(latestValue, 2),
+      previous_mt: round(prevValue, 2),
+      yoy_growth_pct: prevValue ? round(pct(latestValue - prevValue, prevValue), 2) : null
     };
   }).sort((a, b) => b.latest_mt - a.latest_mt);
 
   const seasons = ['Kharif', 'Rabi', 'Summer'].map(season => {
-    const cRow = db.prepare(`SELECT production_mt FROM production_foodgrains WHERE crop = 'Total Foodgrains' AND season = ? AND year = ?`).get(season, latest);
-    const pRow = db.prepare(`SELECT production_mt FROM production_foodgrains WHERE crop = 'Total Foodgrains' AND season = ? AND year = ?`).get(season, previous);
-    const cVal = num(cRow?.production_mt);
-    const pVal = num(pRow?.production_mt);
+    const current = getProduction('Total Foodgrains', season, latest);
+    const prev = getProduction('Total Foodgrains', season, previous);
     return {
       season,
-      latest_mt: round(cVal, 2),
-      previous_mt: round(pVal, 2),
-      yoy_growth_pct: pVal ? round(pct(cVal - pVal, pVal), 2) : null
+      latest_mt: round(current, 2),
+      previous_mt: round(prev, 2),
+      yoy_growth_pct: prev ? round(pct(current - prev, prev), 2) : null
     };
   });
 
-  const totalLatestRow = db.prepare(`SELECT production_mt FROM production_foodgrains WHERE crop = 'Total Foodgrains' AND season = 'Total' AND year = ?`).get(latest);
-  const totalLatest = num(totalLatestRow?.production_mt);
+  const riceKharif = getProduction('Rice', 'Kharif', latest);
+  const riceRabi = getProduction('Rice', 'Rabi', latest);
+  const wheatKharif = getProduction('Wheat', 'Kharif', latest);
+  const wheatRabi = getProduction('Wheat', 'Rabi', latest);
+  const coarseKharif = getProduction('Coarse Grains', 'Kharif', latest);
+  const coarseRabi = getProduction('Coarse Grains', 'Rabi', latest);
 
   return {
     latest_year: latest,
     previous_year: previous,
+    latest_total_mt: round(totalFoodgrains, 2),
+    previous_total_mt: round(previousTotal, 2),
+    yoy_growth_pct: previousTotal ? round(pct(totalFoodgrains - previousTotal, previousTotal), 2) : null,
     by_crop: byCrop,
     seasons,
-    latest_total_mt: round(totalLatest, 2),
-    crop_share: byCrop.map(r => ({ crop: r.crop, share_pct: totalLatest ? round(pct(r.latest_mt, totalLatest), 2) : null }))
+    crop_share: byCrop.map(r => ({ crop: r.crop, share_pct: totalFoodgrains ? round(pct(r.latest_mt, totalFoodgrains), 2) : null })),
+    commodity_breakdown: {
+      rice: { kharif_mt: round(riceKharif, 2), rabi_mt: round(riceRabi, 2), kharif_rabi_mt: round(riceKharif + riceRabi, 2) },
+      wheat: { kharif_mt: round(wheatKharif, 2), rabi_mt: round(wheatRabi, 2), kharif_rabi_mt: round(wheatKharif + wheatRabi, 2) },
+      coarse_grains: { kharif_mt: round(coarseKharif, 2), rabi_mt: round(coarseRabi, 2), kharif_rabi_mt: round(coarseKharif + coarseRabi, 2) }
+    }
   };
 }
 
 function procurementByYear(monthParam) {
   database.init();
   const selected = resolveMonth(monthParam);
-  const monthClause = selected !== 'all' ? `WHERE data_month = '${selected}'` : '';
   const years = db.prepare(`SELECT DISTINCT year FROM statewise_procurement ORDER BY year ASC`).all().map(r => r.year);
 
   return years.map(yr => {
@@ -112,9 +166,30 @@ function procurementByYear(monthParam) {
 }
 
 function chooseLatestProcurementYear() {
-  const all = procurementByYear();
-  const found = [...all].reverse().find(x => x.rice > 0 && x.wheat > 0);
-  return found?.year || "2025-26";
+  // Dashboard reporting requirement: use 2025-26 as the current procurement year.
+  return "2025-26";
+}
+
+function procurementKpi(monthParam) {
+  database.init();
+  const selected = resolveMonth(monthParam);
+  const year = "2025-26";
+  const rows = procurementByYear(selected);
+  let row = rows.find(x => x.year === year);
+
+  // If a selected bulletin snapshot does not carry this year, use the annual record.
+  if (!row || num(row.total) <= 0) {
+    row = procurementByYear("all").find(x => x.year === year);
+  }
+  row = row || { rice: 0, wheat: 0, coarse: 0, total: 0 };
+
+  return {
+    year,
+    total_lakh: round(row.total, 2),
+    rice_lakh: round(row.rice, 2),
+    wheat_lakh: round(row.wheat, 2),
+    coarse_lakh: round(row.coarse, 2)
+  };
 }
 
 function stateSummary(monthParam) {
@@ -199,6 +274,46 @@ function stateSummary(monthParam) {
 function stockAnalytics(monthParam) {
   database.init();
   const selected = resolveMonth(monthParam);
+  const stockFilter = selected !== 'all' ? 'WHERE data_month = ?' : '';
+  const stockParams = selected !== 'all' ? [selected] : [];
+  // KPI stock must use the official "All India Total" from the source statement.
+  // This row includes items such as stock in transit / wheat lying in mandies,
+  // which are not part of the state-row sum. Fall back to state aggregation only
+  // when the source total is unavailable.
+  const monthNumber = {
+    January: '01', February: '02', March: '03', April: '04', May: '05', June: '06',
+    July: '07', August: '08', September: '09', October: '10', November: '11', December: '12'
+  }[selected];
+  const allIndiaSource = selected !== 'all' && monthNumber
+    ? db.prepare(`
+        SELECT
+          CAST(col_013 AS REAL) AS total,
+          CAST(col_011 AS REAL) AS rice,
+          CAST(col_012 AS REAL) AS wheat
+        FROM src_total_stock_in_central_pool
+        WHERE reporting_period LIKE ?
+          AND LOWER(COALESCE(col_001, '')) LIKE '%all india total%'
+        ORDER BY excel_row_number DESC
+        LIMIT 1
+      `).get(`%-${monthNumber}-%`)
+    : null;
+  const stateStock = db.prepare(`
+    SELECT
+      SUM(total_stock_lmt) AS total,
+      SUM(total_rice_lmt) AS rice,
+      SUM(total_wheat_lmt) AS wheat,
+      MAX(as_on_date) AS as_on_date
+    FROM central_pool_stocks ${stockFilter}
+  `).get(...stockParams) || {};
+  const stock = allIndiaSource
+    ? { ...stateStock, total: allIndiaSource.total, rice: allIndiaSource.rice, wheat: allIndiaSource.wheat }
+    : stateStock;
+  const months = getAvailableMonths();
+  const monthIndex = months.indexOf(selected);
+  const previousMonth = selected !== 'all' && monthIndex > 0 ? months[monthIndex - 1] : null;
+  const previousStock = previousMonth
+    ? db.prepare('SELECT SUM(total_stock_lmt) AS total FROM central_pool_stocks WHERE data_month = ?').get(previousMonth)
+    : null;
   let rows = [];
   if (selected !== 'all') {
     rows = db.prepare(`SELECT * FROM monthwise_stocks_norm WHERE data_month = ? ORDER BY id ASC`).all(selected);
@@ -206,34 +321,45 @@ function stockAnalytics(monthParam) {
   if (!rows || rows.length < 5) {
     rows = db.prepare(`SELECT * FROM monthwise_stocks_norm ORDER BY id ASC`).all();
   }
-  const latest = rows[rows.length - 1] || {};
-  const previous = rows[rows.length - 2] || {};
   const normLatest = [...rows].reverse().find(r => r.total_norm_lmt > 0) || {};
+  const latestAdequacy = pct(stock.total, normLatest.total_norm_lmt);
+  const series = rows.map(r => {
+    const w = num(r.wheat_actual_lmt);
+    const rc = num(r.rice_actual_lmt);
+    const tot = num(r.total_actual_lmt) || round(w + rc, 2);
+    return {
+      date: r.as_on_date,
+      total_actual: tot,
+      total_norm: r.total_norm_lmt,
+      rice_actual: rc,
+      wheat_actual: w,
+      coarse_actual: num(r.coarse_actual_lmt)
+    };
+  });
 
-  const latestAdequacy = pct(latest.total_actual_lmt, normLatest.total_norm_lmt);
+  // Current dashboard totals come from the state-wise Central Pool statement.
+  // The month-wise table remains a historical trend source only.
+  if (stock.total) {
+    series.push({
+      date: `${selected} 2026 (state total)`,
+      total_actual: round(stock.total, 2),
+      total_norm: normLatest.total_norm_lmt,
+      rice_actual: round(stock.rice, 2),
+      wheat_actual: round(stock.wheat, 2),
+      coarse_actual: null
+    });
+  }
 
   return {
-    latest_date: latest.as_on_date || "01.07.2026",
-    latest_total_lmt: num(latest.total_actual_lmt),
-    latest_rice_lmt: num(latest.rice_actual_lmt),
-    latest_wheat_lmt: num(latest.wheat_actual_lmt),
-    latest_coarse_lmt: num(latest.coarse_actual_lmt),
+    latest_date: stock.as_on_date || `${selected} 2026`,
+    latest_total_lmt: round(stock.total, 2),
+    latest_rice_lmt: round(stock.rice, 2),
+    latest_wheat_lmt: round(stock.wheat, 2),
+    latest_coarse_lmt: null,
     latest_total_norm_lmt: normLatest.total_norm_lmt ?? null,
     latest_adequacy_pct: round(latestAdequacy, 2),
-    month_on_month_change_lmt: round(num(latest.total_actual_lmt) - num(previous.total_actual_lmt), 2),
-    series: rows.map(r => {
-      const w = num(r.wheat_actual_lmt);
-      const rc = num(r.rice_actual_lmt);
-      const tot = num(r.total_actual_lmt) || round(w + rc, 2);
-      return {
-        date: r.as_on_date,
-        total_actual: tot,
-        total_norm: r.total_norm_lmt,
-        rice_actual: rc,
-        wheat_actual: w,
-        coarse_actual: num(r.coarse_actual_lmt)
-      };
-    })
+    month_on_month_change_lmt: previousStock ? round(num(stock.total) - num(previousStock.total), 2) : null,
+    series
   };
 }
 
@@ -245,9 +371,17 @@ function allocationOfftakeAnalytics(monthParam) {
   const yearly = years.map(yr => {
     const whereStr = selected !== 'all' ? `WHERE year = ? AND data_month = ?` : `WHERE year = ?`;
     const params = selected !== 'all' ? [yr, selected] : [yr];
-    const agg = db.prepare(`
+    const officialWhere = selected !== 'all'
+      ? `WHERE year = ? AND data_month = ? AND scheme = 'Official Total'`
+      : `WHERE year = ? AND scheme = 'Official Total'`;
+    const official = db.prepare(`
+      SELECT allocation_lakh_tons AS alloc, offtake_lakh_tons AS off
+      FROM comparative_allocation_offtake ${officialWhere}
+      LIMIT 1
+    `).get(...params);
+    const agg = official || db.prepare(`
       SELECT SUM(allocation_lakh_tons) AS alloc, SUM(offtake_lakh_tons) AS off
-      FROM comparative_allocation_offtake ${whereStr}
+      FROM comparative_allocation_offtake ${whereStr} AND scheme <> 'Official Total'
     `).get(...params) || {};
     const a = num(agg.alloc);
     const o = num(agg.off);
@@ -270,6 +404,8 @@ function nfsaAnalytics(monthParam) {
   const agg = db.prepare(`
     SELECT
       SUM(population_lakh) AS pop,
+      SUM(accepted_rural_lakh) AS accepted_rural,
+      SUM(accepted_urban_lakh) AS accepted_urban,
       SUM(accepted_total_lakh) AS accepted,
       AVG(coverage_rural_pct) AS avg_rural,
       AVG(coverage_urban_pct) AS avg_urban
@@ -281,6 +417,8 @@ function nfsaAnalytics(monthParam) {
 
   return {
     population_lakh: round(pop, 2),
+    accepted_rural_lakh: round(agg.accepted_rural, 2),
+    accepted_urban_lakh: round(agg.accepted_urban, 2),
     accepted_persons_lakh: round(acc, 2),
     present_coverage_lakh: round(acc, 2),
     pct_accepted: round(pct(acc, pop), 2),
@@ -469,7 +607,7 @@ function permutationAnalytics(options = {}) {
   const totalAgg = round(filtered.reduce((sum, f) => sum + f.value, 0), 2);
 
   // Grouping
-  let groupedData = [];
+  let groupedData;
   if (groupBy === 'region') {
     const regMap = {};
     filtered.forEach(f => {
@@ -592,6 +730,7 @@ function unitaryAspectAnalytics(stateName = 'All India', metric = 'total_stock',
     wheat_procurement: { label: 'Wheat Procurement', unit: 'Lakh MT', field: 'procurement_wheat_lakh' },
     rice_procurement: { label: 'Rice Procurement', unit: 'Lakh MT', field: 'procurement_rice_lakh' },
     nfsa_allocation: { label: 'Annual NFSA Allocation', unit: 'Thousand Tons (KT)', field: 'annual_nfsa_allocation_kt' },
+    annual_nfsa_allocation: { label: 'Annual NFSA Allocation', unit: 'Thousand Tons (KT)', field: 'annual_nfsa_allocation_kt' },
     aay_allocation: { label: 'AAY Families Allocation', unit: 'Thousand Tons (KT)', field: 'aay_kt' },
     phh_allocation: { label: 'PHH Priority Households Allocation', unit: 'Thousand Tons (KT)', field: 'phh_kt' },
     offtake_total: { label: 'Offtake Distribution Upto Month', unit: 'Thousand Tons (KT)', field: 'upto_june_offtake_kt' },
@@ -606,16 +745,17 @@ function unitaryAspectAnalytics(stateName = 'All India', metric = 'total_stock',
 
   const getMetricVal = (stateObj, mKey) => {
     if (!stateObj) return 0;
+    const metricDef = METRIC_DEFS[mKey] || def;
     if (mKey === 'buffer_coverage') {
       const stock = num(stateObj.central_stock_lmt);
       const monthlyAlloc = (num(stateObj.annual_nfsa_allocation_kt) / 12) / 100;
       return monthlyAlloc > 0 ? round(stock / monthlyAlloc, 2) : 0;
     }
-    return num(stateObj[def.field]);
+    return num(stateObj[metricDef.field]);
   };
 
-  let bVal = 0;
-  let tVal = 0;
+  let bVal;
+  let tVal;
   const bNatTotal = bSummary.reduce((s, r) => s + getMetricVal(r, metric), 0);
   const tNatTotal = tSummary.reduce((s, r) => s + getMetricVal(r, metric), 0);
 
@@ -648,7 +788,7 @@ function unitaryAspectAnalytics(stateName = 'All India', metric = 'total_stock',
   const months = getAvailableMonths();
   const multiMonthTrend = months.map(m => {
     const sList = stateSummary(m);
-    let val = 0;
+    let val;
     if (isAllIndia) {
       val = sList.reduce((acc, r) => acc + getMetricVal(r, metric), 0);
     } else {
@@ -738,7 +878,7 @@ function unitaryAspectAnalytics(stateName = 'All India', metric = 'total_stock',
   ];
 
   const allMetricsComparison = CORE_METRICS.map(m => {
-    let vA = 0, vB = 0;
+    let vA, vB;
     if (isAllIndia) {
       vA = bSummary.reduce((s, r) => s + getMetricVal(r, m.id), 0);
       vB = tSummary.reduce((s, r) => s + getMetricVal(r, m.id), 0);
@@ -789,6 +929,77 @@ function unitaryAspectAnalytics(stateName = 'All India', metric = 'total_stock',
   };
 }
 
+function distributionAnalytics(monthParam) {
+  database.init();
+  const selected = resolveMonth(monthParam);
+  const whereMonth = selected !== 'all' ? `AND LOWER(data_month) = '${selected.toLowerCase()}'` : '';
+
+  const monthAgg = db.prepare(`
+    SELECT
+      SUM(alloc_total_kt) AS alloc,
+      SUM(offtake_total_kt) AS offtake,
+      SUM(distrib_total_kt) AS distrib,
+      SUM(distrib_aay_kt) AS distrib_aay,
+      SUM(distrib_phh_kt) AS distrib_phh
+    FROM offtake_distribution
+    WHERE period_type = 'month' ${whereMonth}
+  `).get() || {};
+
+  const uptoAgg = db.prepare(`
+    SELECT
+      SUM(alloc_total_kt) AS alloc,
+      SUM(offtake_total_kt) AS offtake,
+      SUM(distrib_total_kt) AS distrib,
+      SUM(distrib_aay_kt) AS distrib_aay,
+      SUM(distrib_phh_kt) AS distrib_phh
+    FROM offtake_distribution
+    WHERE period_type = 'upto_month' ${whereMonth}
+  `).get() || {};
+
+  const topStates = db.prepare(`
+    SELECT state, alloc_total_kt, offtake_total_kt, distrib_total_kt, distrib_aay_kt, distrib_phh_kt
+    FROM offtake_distribution
+    WHERE period_type = 'month' ${whereMonth}
+    ORDER BY distrib_total_kt DESC LIMIT 10
+  `).all();
+
+  const portAgg = db.prepare(`
+    SELECT
+      SUM(interstate_txns) as interstate_txns,
+      SUM(interstate_distrib_mt) as interstate_distrib_mt,
+      SUM(intrastate_txns) as intrastate_txns,
+      SUM(intrastate_distrib_mt) as intrastate_distrib_mt,
+      SUM(total_aadhaar_txns) as total_aadhaar_txns
+    FROM portability_transactions
+    WHERE 1=1 ${whereMonth}
+  `).get() || {};
+
+  const distribVal = num(monthAgg.distrib);
+  const offtakeVal = num(monthAgg.offtake);
+  const allocVal = num(monthAgg.alloc);
+
+  return {
+    month_summary: {
+      alloc_kt: round(monthAgg.alloc, 2),
+      offtake_kt: round(monthAgg.offtake, 2),
+      distrib_kt: round(monthAgg.distrib, 2),
+      distrib_aay_kt: round(monthAgg.distrib_aay, 2),
+      distrib_phh_kt: round(monthAgg.distrib_phh, 2),
+      rate_pct: round(pct(distribVal, offtakeVal || allocVal), 2)
+    },
+    upto_month_summary: {
+      alloc_kt: round(uptoAgg.alloc, 2),
+      offtake_kt: round(uptoAgg.offtake, 2),
+      distrib_kt: round(uptoAgg.distrib, 2),
+      distrib_aay_kt: round(uptoAgg.distrib_aay, 2),
+      distrib_phh_kt: round(uptoAgg.distrib_phh, 2),
+      rate_pct: round(pct(num(uptoAgg.distrib), num(uptoAgg.offtake) || num(uptoAgg.alloc)), 2)
+    },
+    top_states: topStates,
+    portability: portAgg
+  };
+}
+
 function overview(monthParam) {
   const selected = resolveMonth(monthParam);
   const production = aggregateProduction(selected);
@@ -796,9 +1007,14 @@ function overview(monthParam) {
   const states = stateSummary(selected);
   const stock = stockAnalytics(selected);
   const alloc = allocationOfftakeAnalytics(selected);
+  const distribution = distributionAnalytics(selected);
   const nfsa = nfsaAnalytics(selected);
   const trade = tradeAnalytics(selected);
   const availableMonths = getAvailableMonths();
+
+  const fpsStates = states.filter(s => num(s.total_fps_count) > 0);
+  const totalFps = fpsStates.reduce((acc, s) => acc + num(s.total_fps_count), 0);
+  const topFpsStates = [...fpsStates].sort((a, b) => b.total_fps_count - a.total_fps_count).slice(0, 5);
 
   return {
     generated_at: new Date().toISOString(),
@@ -806,11 +1022,20 @@ function overview(monthParam) {
     available_months: availableMonths,
     datasets: database.listDatasets().length,
     production,
-    production_detail: productionDetail(),
+    production_detail: productionDetail(selected),
+    production_kpi: productionDetail(selected),
     procurement,
+    procurement_kpi: procurementKpi(selected),
     stock,
     allocation_offtake: alloc,
+    distribution,
     nfsa,
+    fps_kpi: {
+      total_fps_count: totalFps,
+      reporting_states: fpsStates.length,
+      average_per_state: fpsStates.length ? Math.round(totalFps / fpsStates.length) : 0,
+      top_states: topFpsStates.map(s => ({ state: s.state, count: s.total_fps_count }))
+    },
     trade,
     relief: reliefAnalytics(selected),
     states: states.slice(0, 10),
@@ -896,5 +1121,6 @@ module.exports = {
   momComparisonAnalytics,
   permutationAnalytics,
   unitaryAspectAnalytics,
-  getAvailableMonths
+  getAvailableMonths,
+  distributionAnalytics
 };

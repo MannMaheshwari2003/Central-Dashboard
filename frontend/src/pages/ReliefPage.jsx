@@ -1,10 +1,9 @@
-import React from "react";
-import { PageHeader, SectionTitle, KpiGrid, Panel, Loading, ErrorBox, DataTable, DetailRow } from "../components/ui/index.js";
-import { BarChart, DoughnutChart, HBarChart, GOV_PALETTE } from "../components/charts/index.js";
+import { PageHeader, SectionTitle, KpiGrid, Panel, Loading, ErrorBox, DataTable } from "../components/ui/index.js";
+import { BarChart, DoughnutChart, GOV_PALETTE } from "../components/charts/index.js";
 import { useDatasets } from "../hooks/useDataset.js";
 import { fmt } from "../utils/format.js";
 
-const IDS = ["festivals_calamity_allocation", "consumer_subsidy", "food_subsidy_fci_state"];
+const IDS = ["festivals_calamity_allocation", "consumer_subsidy"];
 
 export default function ReliefPage() {
   const { data: ds, error, loading } = useDatasets(IDS);
@@ -14,7 +13,6 @@ export default function ReliefPage() {
 
   const festRows = ds.festivals_calamity_allocation?.data || ds.festivals_calamity_allocation?.rows || [];
   const subsidyRows = ds.consumer_subsidy?.data || ds.consumer_subsidy?.rows || [];
-  const fciSubsidyRows = ds.food_subsidy_fci_state?.data || ds.food_subsidy_fci_state?.rows || [];
 
   const allTotal = festRows.reduce((s, r) => s + (r.total_kt || 0), 0);
   const allRice = festRows.reduce((s, r) => s + (r.rice_kt || 0), 0);
@@ -24,7 +22,7 @@ export default function ReliefPage() {
     { label: "Total Relief Allocation", value: fmt.num(allTotal, 2), unit: "Thousand Tons", icon: "fa-ambulance", accent: "navy" },
     { label: "Rice Share", value: fmt.num(allRice, 2), unit: "Thousand Tons", icon: "fa-leaf", accent: "green", foot: fmt.pct(allTotal ? (allRice / allTotal) * 100 : 0) + " of total" },
     { label: "Wheat Share", value: fmt.num(allWheat, 2), unit: "Thousand Tons", icon: "fa-leaf", accent: "saffron", foot: fmt.pct(allTotal ? (allWheat / allTotal) * 100 : 0) + " of total" },
-    { label: "Total Food Subsidy (2025-26)", value: fmt.num(subsidyRows.find(r => r.year === "2025-26")?.total_subsidy_crores || 227739.96, 0), unit: "Rs. Crores", icon: "fa-money", accent: "warn" }
+    { label: "Total Food Subsidy (2025-26)", value: fmt.num(subsidyRows.find(r => r.year === "2025-26")?.total_subsidy_crores, 0), unit: "Rs. Crores", icon: "fa-money", accent: "warn" }
   ];
 
   const yearMap = {};
@@ -87,12 +85,12 @@ export default function ReliefPage() {
       <div className="row-eq">
         <div className="col-md-6 col-xs-12">
           <Panel title="Festivals &amp; Calamity Relief Register" sub="State allocations, CIP basis, and release dates" badge="Thousand Tons">
-            <DataTable columns={cols} data={festRows} searchPlaceholder="Search state or remarks..." filename="festivals-calamity-allocation" />
+            <DataTable columns={cols} data={festRows} searchPlaceholder="Search state or remarks..." exportFilename="festivals-calamity-allocation" />
           </Panel>
         </div>
         <div className="col-md-6 col-xs-12">
           <Panel title="Consumer Subsidy &amp; Releases" sub="Per-quintal subsidy rates and total food subsidy released" badge="Rs. Crores">
-            <DataTable columns={subCols} data={subsidyRows} searchPlaceholder="Search financial year..." filename="consumer-subsidy-releases" />
+            <DataTable columns={subCols} data={subsidyRows} searchPlaceholder="Search financial year..." exportFilename="consumer-subsidy-releases" />
           </Panel>
         </div>
       </div>

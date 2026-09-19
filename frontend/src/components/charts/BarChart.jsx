@@ -1,4 +1,3 @@
-import React from "react";
 import { useChart } from "./useChart.js";
 
 export default function BarChart({ data, options, height = 210 }) {

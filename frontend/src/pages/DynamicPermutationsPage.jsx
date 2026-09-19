@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMonth } from "../context/MonthContext.jsx";
 import { BarChart, DoughnutChart, GOV_PALETTE } from "../components/charts/index.js";
+import { api } from "../api/client.js";
 
 export default function DynamicPermutationsPage() {
   const { availableMonths, selectedMonth } = useMonth();
@@ -31,10 +32,7 @@ export default function DynamicPermutationsPage() {
           commodity: commodityFilter,
           state: searchTerm,
         });
-        const res = await fetch(`/api/analytics/permutations?${params.toString()}`);
-        if (!res.ok) throw new Error("Failed to load permutation data");
-        const json = await res.json();
-        setData(json);
+        setData(await api.getPermutations(Object.fromEntries(params)));
       } catch (err) {
         setError(err.message);
       } finally {

@@ -6,6 +6,7 @@ const config = require("./config");
 const apiRoutes = require("./routes/api.routes");
 const controller = require("./controllers/dataset.controller");
 const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
+const { unitMiddleware } = require("./services/unit.service");
 
 function createApp() {
   const app = express();
@@ -21,6 +22,7 @@ function createApp() {
     legacyHeaders: false
   }));
   app.use((req,res,next)=>{ res.setHeader("X-API-Version","v1"); next(); });
+  app.use("/api", unitMiddleware);
   app.get("/", controller.getHealth);
   app.use("/api", apiRoutes);
   app.use(notFoundHandler);

@@ -1,16 +1,17 @@
-import React from "react";
 import { PageHeader, SectionTitle, KpiGrid, Panel, Loading, ErrorBox, DataTable, DetailRow } from "../components/ui/index.js";
 import { BarChart, LineChart, GOV_PALETTE } from "../components/charts/index.js";
 import { useDatasets } from "../hooks/useDataset.js";
 import { api } from "../api/client.js";
 import { useAsync } from "../hooks/useAsync.js";
 import { fmt } from "../utils/format.js";
+import { useMonth } from "../context/MonthContext.jsx";
 
 const IDS = ["production_foodgrains", "sugar_production"];
 
 export default function ProductionPage() {
+  const { selectedMonth } = useMonth();
   const { data: ds, error: dErr, loading: dLoading } = useDatasets(IDS);
-  const { data: overview, error: oErr, loading: oLoading } = useAsync(() => api.getAnalyticsOverview(), []);
+  const { data: overview, error: oErr, loading: oLoading } = useAsync(() => api.getAnalyticsOverview({ month: selectedMonth }), [selectedMonth]);
 
   if (dErr || oErr) return <ErrorBox msg={dErr || oErr} />;
   if (dLoading || oLoading || !ds || !overview) return <Loading label="Loading production data…" />;
@@ -20,8 +21,7 @@ export default function ProductionPage() {
 
   const prodDetail = overview.production_detail || {};
   const latestYear = prodDetail.latest_year || "2025-26";
-  const prevYear = prodDetail.previous_year || "2024-25";
-  const latestTotal = prodDetail.latest_total_mt || 332.22;
+  const latestTotal = prodDetail.latest_total_mt ?? 0;
 
   const years = [...new Set(prodRows.map(r => r.year))].sort();
 
@@ -119,12 +119,12 @@ export default function ProductionPage() {
       <div className="row-eq">
         <div className="col-md-6 col-xs-12">
           <Panel title="Foodgrain Production Matrix" sub="Relational production records by crop, season, and year" badge="SQL Table">
-            <DataTable columns={cols} data={prodRows} searchPlaceholder="Search crop or season..." filename="foodgrain-production" />
+            <DataTable columns={cols} data={prodRows} searchPlaceholder="Search crop or season..." exportFilename="foodgrain-production" />
           </Panel>
         </div>
         <div className="col-md-6 col-xs-12">
           <Panel title="Month-wise Sugar Production" sub="Monthly sugar production records in Lakh Tons" badge="Lakh Tons">
-            <DataTable columns={sugarCols} data={sugarRows} searchPlaceholder="Search year or month..." filename="sugar-production" />
+            <DataTable columns={sugarCols} data={sugarRows} searchPlaceholder="Search year or month..." exportFilename="sugar-production" />
           </Panel>
         </div>
       </div>

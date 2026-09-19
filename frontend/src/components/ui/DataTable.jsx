@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ExportCsvButton from "./ExportCsvButton.jsx";
 
 /**
@@ -13,15 +13,27 @@ import ExportCsvButton from "./ExportCsvButton.jsx";
  * }]
  */
 export default function DataTable({ columns, rows, data, pageSize = 12, defaultSortKey, defaultSortDir = "desc", exportFilename = "table-export", title, searchPlaceholder }) {
-  const actualRows = data || rows || [];
+  const actualRows = useMemo(() => data || rows || [], [data, rows]);
   const [sortKey, setSortKey] = useState(defaultSortKey || (columns && columns[0] && columns[0].key));
   const [sortDir, setSortDir] = useState(defaultSortDir);
   const [page, setPage] = useState(0);
+  const [search, setSearch] = useState("");
 
-  useEffect(() => setPage(0), [actualRows]);
+  useEffect(() => setPage(0), [actualRows, search]);
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return actualRows;
+    return actualRows.filter((row) =>
+      (columns || []).some((column) => {
+        const value = column.csvValue ? column.csvValue(row) : row[column.key];
+        return String(value ?? "").toLowerCase().includes(query);
+      })
+    );
+  }, [actualRows, columns, search]);
 
   const sorted = useMemo(() => {
-    const arr = [...actualRows];
+    const arr = [...filtered];
     arr.sort((a, b) => {
       let va = a[sortKey],
         vb = b[sortKey];
@@ -34,7 +46,7 @@ export default function DataTable({ columns, rows, data, pageSize = 12, defaultS
       return 0;
     });
     return arr;
-  }, [actualRows, sortKey, sortDir]);
+  }, [filtered, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const pageRows = sorted.slice(page * pageSize, page * pageSize + pageSize);
@@ -57,6 +69,20 @@ export default function DataTable({ columns, rows, data, pageSize = 12, defaultS
     <div>
       <div className="table-toolbar">
         {title && <div className="table-toolbar-title">{title}</div>}
+        {searchPlaceholder && (
+          <div className="search-field">
+            <i className="fa fa-search" aria-hidden="true"></i>
+            <label className="sr-only" htmlFor={`table-search-${exportFilename}`}>Search table</label>
+            <input
+              id={`table-search-${exportFilename}`}
+              className="form-control input-sm"
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={searchPlaceholder}
+            />
+          </div>
+        )}
         <ExportCsvButton columns={exportColumns} rows={sorted} filename={exportFilename} />
       </div>
       <div className="table-responsive gov-table-wrap">

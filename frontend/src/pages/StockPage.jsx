@@ -1,13 +1,15 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { PageHeader, SectionTitle, KpiGrid, Panel, Loading, ErrorBox, FilterBar, FilterSelect, DataTable } from "../components/ui/index.js";
 import { LineChart, HBarChart, DoughnutChart, GOV_PALETTE } from "../components/charts/index.js";
 import { useDatasets } from "../hooks/useDataset.js";
+import { useMonth } from "../context/MonthContext.jsx";
 import { fmt } from "../utils/format.js";
 
 const IDS = ["monthwise_stocks_norm", "central_pool_stocks", "stock_paddy_coarsegrain"];
 
 export default function StockPage() {
   const { data: ds, error, loading } = useDatasets(IDS);
+  const { selectedMonth } = useMonth();
   const [commodity, setCommodity] = useState("total");
   const [yearsBack, setYearsBack] = useState("24");
 
@@ -19,7 +21,6 @@ export default function StockPage() {
   const paddy = ds.stock_paddy_coarsegrain?.data || ds.stock_paddy_coarsegrain?.rows || [];
 
   const nBack = yearsBack === "all" ? monthwise.length : Number(yearsBack);
-  const rows = monthwise.slice(-nBack);
 
   const fieldMap = {
     total: { actual: "total_actual_lmt", norm: "total_norm_lmt", label: "Total Foodgrains", regionKey: "total_stock_lmt" },
@@ -28,6 +29,21 @@ export default function StockPage() {
     coarse: { actual: "coarse_actual_lmt", norm: "total_norm_lmt", label: "Coarse Grains", regionKey: null },
   };
   const f = fieldMap[commodity];
+  const centralLatest = {
+    total_actual_lmt: regionStock.reduce((sum, row) => sum + (row.total_stock_lmt || 0), 0),
+    wheat_actual_lmt: regionStock.reduce((sum, row) => sum + (row.total_wheat_lmt || 0), 0),
+    rice_actual_lmt: regionStock.reduce((sum, row) => sum + (row.total_rice_lmt || 0), 0),
+  };
+  const historicalRows = monthwise.slice(-nBack);
+  const rows = f.regionKey
+    ? [...historicalRows, {
+        as_on_date: `${selectedMonth} 2026 (state total)`,
+        ...centralLatest,
+        total_norm_lmt: historicalRows[historicalRows.length - 1]?.total_norm_lmt,
+        wheat_norm_lmt: historicalRows[historicalRows.length - 1]?.wheat_norm_lmt,
+        rice_norm_lmt: historicalRows[historicalRows.length - 1]?.rice_norm_lmt,
+      }]
+    : historicalRows;
 
   const trendData = {
     labels: rows.map((r) => r.as_on_date),
@@ -41,8 +57,11 @@ export default function StockPage() {
   const periodMax = validActual.length ? Math.max(...validActual) : null;
   const periodMin = validActual.length ? Math.min(...validActual) : null;
 
-  const latest = monthwise[monthwise.length - 1] || {};
+  const latest = f.regionKey
+    ? { ...centralLatest, as_on_date: `${selectedMonth} 2026 (state total)` }
+    : (monthwise[monthwise.length - 1] || {});
   const latestNormRow = [...monthwise].reverse().find((r) => r.total_norm_lmt > 0) || {};
+  const latestNorm = latestNormRow[f.norm];
 
   const kpiItems = [
     { label: `${f.label} — Latest`, value: fmt.num(latest[f.actual], 1), unit: "Lakh MT", icon: "fa-cubes", accent: "navy", foot: "As on " + (latest.as_on_date || "30.06.2026") },
@@ -50,10 +69,10 @@ export default function StockPage() {
     { label: `${f.label} — Low (selected period)`, value: fmt.num(periodMin, 1), unit: "Lakh MT", icon: "fa-arrow-down", accent: "warn", foot: `Over last ${yearsBack === "all" ? "all available" : yearsBack + " months"}` },
     {
       label: "vs Buffer Norm",
-      value: latestNormRow.total_norm_lmt ? fmt.pct((latest.total_actual_lmt / latestNormRow.total_norm_lmt) * 100, 0) : "—",
+      value: latestNorm ? fmt.pct((latest[f.actual] / latestNorm) * 100, 0) : "—",
       icon: "fa-shield",
       accent: "warn",
-      foot: latestNormRow.total_norm_lmt ? `Norm: ${fmt.num(latestNormRow.total_norm_lmt, 1)} Lakh MT` : "",
+      foot: latestNorm ? `Norm: ${fmt.num(latestNorm, 1)} Lakh MT` : "",
     },
   ];
 
@@ -169,12 +188,12 @@ export default function StockPage() {
       <div className="row-eq">
         <div className="col-md-6 col-xs-12">
           <Panel title="Paddy &amp; Coarse Grain Stock Position" sub="State-wise stock with FCI and State Agencies" badge="Lakh MT">
-            <DataTable columns={paddyCols} data={paddy} searchPlaceholder="Filter state..." filename="paddy-coarsegrain-stock" />
+            <DataTable columns={paddyCols} data={paddy} searchPlaceholder="Filter state..." exportFilename="paddy-coarsegrain-stock" />
           </Panel>
         </div>
         <div className="col-md-6 col-xs-12">
           <Panel title="Monthly Stock &amp; Norm History" sub="Historical Central Pool actual stock and stocking norms" badge="Lakh MT">
-            <DataTable columns={monthCols} data={monthwise} searchPlaceholder="Filter month..." filename="monthly-stock-history" />
+            <DataTable columns={monthCols} data={monthwise} searchPlaceholder="Filter month..." exportFilename="monthly-stock-history" />
           </Panel>
         </div>
       </div>

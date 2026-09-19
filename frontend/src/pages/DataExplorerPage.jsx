@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader, Panel, Loading, ErrorBox, FilterBar, FilterSelect, SearchBox, DataTable } from "../components/ui/index.js";
 import { useDatasetsRegistry, useDataset } from "../hooks/useDataset.js";
 import { useMonth } from "../context/MonthContext.jsx";
@@ -22,7 +22,7 @@ export default function DataExplorerPage() {
   const [category, setCategory] = useState("all");
   const [search, setSearch] = useState("");
 
-  const datasets = registry?.datasets || [];
+  const datasets = useMemo(() => registry?.datasets || [], [registry]);
 
   useEffect(() => {
     if (datasets.length && !activeId) setActiveId(datasets[0].id);

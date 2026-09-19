@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { useChart } from "./useChart.js";
 
 export default function DoughnutChart({ data, options, height = 220, showDetails = true, unit = "" }) {
@@ -19,7 +19,7 @@ export default function DoughnutChart({ data, options, height = 220, showDetails
     plugins: {
       legend: {
         position: "bottom",
-        labels: { boxWidth: 10, padding: 10, font: { size: 11.5, weight: "600" } },
+        labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: "rect", padding: 10, font: { size: 11.5, weight: "600" } },
       },
       tooltip: {
         callbacks: {

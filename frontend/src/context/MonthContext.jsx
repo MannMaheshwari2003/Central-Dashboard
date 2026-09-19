@@ -1,53 +1,49 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useCallback, useContext, useState, useEffect } from "react";
+import { api } from "../api/client.js";
 
 const MonthContext = createContext();
 
+function readStoredMonth() {
+  try {
+    return localStorage.getItem("food_pds_selected_month");
+  } catch {
+    return null;
+  }
+}
+
 export function MonthProvider({ children }) {
   const [availableMonths, setAvailableMonths] = useState(["June", "July"]);
-  const [selectedMonth, setSelectedMonthState] = useState(() => {
-    try {
-      return localStorage.getItem("food_pds_selected_month") || "July";
-    } catch (_) {
-      return "July";
-    }
-  });
+  const [selectedMonth, setSelectedMonthState] = useState(() => readStoredMonth() || "July");
   const [baseMonth, setBaseMonth] = useState("June");
   const [targetMonth, setTargetMonth] = useState(() => {
-    try {
-      const saved = localStorage.getItem("food_pds_selected_month");
-      return (saved && saved !== "all") ? saved : "July";
-    } catch (_) {
-      return "July";
-    }
+    const saved = readStoredMonth();
+    return (saved && saved !== "all") ? saved : "July";
   });
-  const [loadingMonths, setLoadingMonths] = useState(true);
-  const [isReingesting, setIsReingesting] = useState(false);
 
   const setSelectedMonth = (m) => {
     setSelectedMonthState(m);
     try {
       localStorage.setItem("food_pds_selected_month", m);
-    } catch (_) {}
+    } catch {
+      // The dashboard still works when browser storage is unavailable.
+    }
     if (m && m !== "all") {
       setTargetMonth(m);
     }
   };
 
-  const fetchMonths = async () => {
+  const fetchMonths = useCallback(async () => {
     try {
-      setLoadingMonths(true);
-      const res = await fetch("/api/analytics/months");
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.getAvailableMonths();
+      if (data) {
         if (data.months && data.months.length) {
           setAvailableMonths(data.months);
-          const saved = localStorage.getItem("food_pds_selected_month");
-          if (saved && (data.months.includes(saved) || saved === "all")) {
-            setSelectedMonthState(saved);
-          } else if (!data.months.includes(selectedMonth)) {
-            const fallback = data.latest || data.months[data.months.length - 1];
-            setSelectedMonthState(fallback);
-          }
+          const saved = readStoredMonth();
+          setSelectedMonthState((current) => {
+            if (saved && (data.months.includes(saved) || saved === "all")) return saved;
+            if (data.months.includes(current)) return current;
+            return data.latest || data.months[data.months.length - 1];
+          });
           if (data.months.length >= 2) {
             setBaseMonth(data.months[0]);
             setTargetMonth(data.months[data.months.length - 1]);
@@ -56,35 +52,12 @@ export function MonthProvider({ children }) {
       }
     } catch (e) {
       console.error("Failed to load available months:", e);
-    } finally {
-      setLoadingMonths(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMonths();
-  }, []);
-
-  const triggerReingestion = async () => {
-    try {
-      setIsReingesting(true);
-      const res = await fetch("/api/admin/reingest", { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.months) {
-          setAvailableMonths(data.months);
-        }
-        alert("Backend data successfully re-ingested from source-data folder!");
-        await fetchMonths();
-      } else {
-        alert("Re-ingestion failed. Please check server logs.");
-      }
-    } catch (e) {
-      alert("Error triggering re-ingestion: " + e.message);
-    } finally {
-      setIsReingesting(false);
-    }
-  };
+  }, [fetchMonths]);
 
   return (
     <MonthContext.Provider
@@ -96,10 +69,6 @@ export function MonthProvider({ children }) {
         setBaseMonth,
         targetMonth,
         setTargetMonth,
-        loadingMonths,
-        fetchMonths,
-        triggerReingestion,
-        isReingesting,
       }}
     >
       {children}

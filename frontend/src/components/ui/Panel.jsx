@@ -1,6 +1,5 @@
-import React from "react";
 
-export default function Panel({ title, sub, badge, children, style, actions }) {
+export default function Panel({ title, sub, badge, badgeClass, children, style, actions }) {
   return (
     <div className="panel panel-default panel-card" style={style}>
       {(title || actions) && (
@@ -9,7 +8,7 @@ export default function Panel({ title, sub, badge, children, style, actions }) {
             <span>{title}</span>
             <span className="panel-title-actions">
               {actions}
-              {badge && <span className="badge panel-badge">{badge}</span>}
+              {badge && <span className={`badge panel-badge ${badgeClass || ""}`.trim()}>{badge}</span>}
             </span>
           </h3>
         </div>

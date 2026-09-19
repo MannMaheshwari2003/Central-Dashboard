@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { api } from "../api/client.js";
 import { useAsync } from "./useAsync.js";
 import { useMonth } from "../context/MonthContext.jsx";
@@ -27,14 +26,6 @@ export function useKpis(options = {}) {
   return useAsync(() => api.getKpis({ month }), [month]);
 }
 
-export function useGeoIndia() {
-  return useAsync(() => api.getGeoIndia(), []);
-}
-
 export function useDatasetsRegistry() {
   return useAsync(() => api.getDatasetsRegistry(), []);
-}
-
-export function useStateInfo(name) {
-  return useAsync(() => (name ? api.getStateInfo(name) : Promise.resolve(null)), [name]);
 }

@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMonth } from "../context/MonthContext.jsx";
+import { api } from "../api/client.js";
 
 export default function MoMComparisonPage() {
   const { availableMonths, baseMonth, setBaseMonth, targetMonth, setTargetMonth } = useMonth();
@@ -15,10 +16,7 @@ export default function MoMComparisonPage() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/analytics/mom?baseMonth=${baseMonth}&targetMonth=${targetMonth}`);
-        if (!res.ok) throw new Error("Failed to fetch MoM analytics");
-        const json = await res.json();
-        setData(json);
+        setData(await api.getMomAnalytics(baseMonth, targetMonth));
       } catch (err) {
         setError(err.message);
       } finally {

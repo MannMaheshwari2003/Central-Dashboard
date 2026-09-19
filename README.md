@@ -72,7 +72,10 @@ Runtime APIs read from SQLite only. The original Excel statements remain under `
 
 ```bash
 cd backend
-npm install
+npm ci
+npm run lint
+npm run check-db
+npm run validate-data
 npm start
 ```
 
@@ -80,11 +83,23 @@ npm start
 
 ```bash
 cd frontend
-npm install
+npm ci
+npm run lint
 npm run dev
 ```
 
 For a separately hosted production API, set `VITE_API_BASE` before building the frontend.
+
+## Production build
+
+```bash
+cd frontend
+npm ci
+npm run lint
+npm run build
+```
+
+Deploy `frontend/dist/` as the static web application and run the backend with `NODE_ENV=production`, an explicit `CORS_ORIGIN`, and a process supervisor. Client routes must fall back to `index.html` on the web server.
 
 ## Data governance principles
 
@@ -93,7 +108,3 @@ For a separately hosted production API, set `VITE_API_BASE` before building the 
 3. Partial-year figures are not presented as equivalent to completed-year figures.
 4. Source Excel statements are retained as provenance/reference material.
 5. The dashboard is an analytical interface; official statistics remain governed by the source publications.
-
-## UI refinement v5
-
-Production-oriented national MIS UI, larger typography, improved space utilization, and chart-specific hover/tooltips.

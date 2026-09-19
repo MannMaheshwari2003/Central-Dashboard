@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { geoMercator, geoPath } from "d3-geo";
 import { PageHeader, Panel, Loading, ErrorBox, FilterBar, FilterSelect, DetailRow, Pill } from "../components/ui/index.js";
 import { api } from "../api/client.js";
@@ -216,10 +216,10 @@ export default function MapPage() {
             {/* Map Legend */}
             <div className="map-legend" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginTop: "15px" }}>
               <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "#64748b" }}>Low</span>
-              <div style={{ flex: 1, height: 10, borderRadius: 5, background: "linear-gradient(90deg, rgb(191,219,254), rgb(29,78,216))", maxWidth: 220 }}></div>
+              <div style={{ flex: 1, height: 10, borderRadius: 2, background: "linear-gradient(90deg, rgb(191,219,254), rgb(29,78,216))", maxWidth: 220 }}></div>
               <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "#64748b" }}>High</span>
               <span style={{ marginLeft: 16, fontSize: "0.8rem", color: "#64748b" }}>
-                <span style={{ background: "#e2e8f0", display: "inline-block", width: 12, height: 12, borderRadius: 3, marginRight: 5 }}></span>
+                <span style={{ background: "#e2e8f0", display: "inline-block", width: 10, height: 10, borderRadius: 2, marginRight: 5 }}></span>
                 No data
               </span>
             </div>

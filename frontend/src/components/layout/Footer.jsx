@@ -1,4 +1,3 @@
-import React from "react";
 import { NavLink } from "react-router-dom";
 import { NAV_ITEMS } from "../../constants/navigation.js";
 import { appConfig } from "../../config/app.config.js";

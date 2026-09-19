@@ -1,16 +1,12 @@
-const fs = require('fs');
-const path = require('path');
 const { db } = require('../db');
-const config = require('../config');
 
 let initialized = false;
 
 function init() {
   if (initialized) return;
-  const schemaPath = path.join(config.paths.root, 'database', 'schema.sql');
-  if (fs.existsSync(schemaPath)) {
-    db.exec(fs.readFileSync(schemaPath, 'utf8'));
-  }
+  // The project ships with a ready-to-use SQLite database. No external
+  // database server, schema import, or seed step is required.
+  db.prepare('SELECT 1').get();
   initialized = true;
 }
 
@@ -44,18 +40,40 @@ const TABLE_REGISTRY = [
   { id: "salient_features", label: "Salient Executive Features", category: "Governance", unit: "Text Statement", source_file: "SalientFeatures.xls" }
 ];
 
+function getSourceRegistry() {
+  init();
+  try {
+    return db.prepare(`SELECT table_name, dataset_name, description, first_period, latest_period, max_source_columns FROM source_table_catalog ORDER BY dataset_name`).all().map(r => ({
+      id: r.table_name,
+      label: r.dataset_name,
+      category: "Source Tables",
+      unit: "Source Excel values",
+      source_file: r.dataset_name,
+      description: r.description,
+      first_period: r.first_period,
+      latest_period: r.latest_period,
+      max_source_columns: r.max_source_columns,
+      source_table: true
+    }));
+  } catch (_) { return []; }
+}
+
+function fullRegistry() { return [...TABLE_REGISTRY, ...getSourceRegistry()]; }
+
 function isValidTable(tableName) {
-  return TABLE_REGISTRY.some(t => t.id === tableName);
+  return fullRegistry().some(t => t.id === tableName);
 }
 
 function listDatasets() {
   init();
-  return TABLE_REGISTRY.map(t => {
+  return fullRegistry().map(t => {
     let count = 0;
     try {
       const row = db.prepare(`SELECT COUNT(*) AS c FROM ${t.id}`).get();
       count = row ? row.c : 0;
-    } catch (_) {}
+    } catch {
+      // A missing table is represented as an empty dataset in the registry.
+    }
     return {
       ...t,
       status: "active",
@@ -67,14 +85,14 @@ function listDatasets() {
 
 function getDatasetMeta(tableName) {
   init();
-  const found = TABLE_REGISTRY.find(t => t.id === tableName);
+  const found = fullRegistry().find(t => t.id === tableName);
   if (!found) return null;
   const countRow = db.prepare(`SELECT COUNT(*) AS c FROM ${tableName}`).get();
   return {
     ...found,
     status: "active",
     record_count: Number(countRow?.c || 0),
-    database: "SQLite (Relational)"
+    database: "Project-local SQLite (Relational + Source Tables)"
   };
 }
 
@@ -91,14 +109,18 @@ function getDataset(tableName, month) {
     try {
       const colCheck = db.prepare(`PRAGMA table_info(${tableName})`).all();
       const hasMonth = colCheck.some(c => c.name === 'data_month');
+      const hasPeriod = colCheck.some(c => c.name === 'reporting_period');
       if (hasMonth) {
         const cnt = db.prepare(`SELECT COUNT(*) AS c FROM ${tableName} WHERE LOWER(data_month) = ?`).get(month.toLowerCase())?.c || 0;
-        if (cnt > 0) {
-          whereClause = `WHERE LOWER(data_month) = ?`;
-          params.push(month.toLowerCase());
-        }
+        if (cnt > 0) { whereClause = `WHERE LOWER(data_month) = ?`; params.push(month.toLowerCase()); }
+      } else if (hasPeriod) {
+        const monthMap = {january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12'};
+        const mm = monthMap[String(month).toLowerCase()];
+        if (mm) { whereClause = `WHERE substr(reporting_period,6,2) = ?`; params.push(mm); }
       }
-    } catch (_) {}
+    } catch {
+      // Tables without a reporting-month column are returned unfiltered.
+    }
   }
   const rows = db.prepare(`SELECT * FROM ${tableName} ${whereClause} ORDER BY id`).all(...params);
   return { rows };
@@ -129,7 +151,9 @@ function queryDataset(tableName, options = {}) {
         filterClauses.push(`${key} LIKE ?`);
         params.push(`%${value}%`);
       }
-    } catch (_) {}
+    } catch {
+      // Ignore unsupported filter keys; only real table columns are accepted.
+    }
   }
 
   if (search) {
@@ -141,7 +165,9 @@ function queryDataset(tableName, options = {}) {
         filterClauses.push(`(${searchOrs})`);
         textCols.forEach(() => params.push(`%${search}%`));
       }
-    } catch (_) {}
+    } catch {
+      // A table without text columns cannot participate in text search.
+    }
   }
 
   const whereStr = filterClauses.length ? `WHERE ${filterClauses.join(' AND ')}` : '';
@@ -197,13 +223,6 @@ function getAvailableMonths() {
   }
 }
 
-function clearDatabase() {
-  init();
-  TABLE_REGISTRY.forEach(t => {
-    try { db.exec(`DELETE FROM ${t.id};`); } catch (_) {}
-  });
-}
-
 module.exports = {
   init,
   listDatasets,
@@ -213,6 +232,6 @@ module.exports = {
   queryDataset,
   getGeoJson,
   getAvailableMonths,
-  clearDatabase,
-  TABLE_REGISTRY
+  TABLE_REGISTRY,
+  getSourceRegistry
 };

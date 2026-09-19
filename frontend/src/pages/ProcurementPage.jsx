@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { PageHeader, SectionTitle, KpiGrid, Panel, Loading, ErrorBox, FilterBar, FilterSelect, SearchBox, DataTable, RankPill, DeltaTag } from "../components/ui/index.js";
 import { LineChart, HBarChart, GOV_PALETTE } from "../components/charts/index.js";
 import { useDatasets } from "../hooks/useDataset.js";
@@ -26,8 +26,6 @@ export default function ProcurementPage() {
   const prevYear = prevYearIdx >= 0 ? years[prevYearIdx] : null;
 
   const currentProcRows = procRows.filter((r) => r.year === effectiveYear);
-  const prevProcRows = prevYear ? procRows.filter((r) => r.year === prevYear) : [];
-
   const totalsByYear = years.map((y) => {
     const rowsY = procRows.filter((r) => r.year === y);
     const rice = rowsY.reduce((s, r) => s + (r.rice_lmt || 0), 0);
@@ -158,7 +156,7 @@ export default function ProcurementPage() {
       <div className="row-eq">
         <div className="col-md-12 col-xs-12">
           <Panel title={`Procurement Details — ${effectiveYear}`} sub="State-level breakdown for Rice, Wheat, and Coarse Grains" badge="Lakh Tons">
-            <DataTable columns={tableCols} data={filteredCurrent} searchPlaceholder="Search state in table..." filename={`procurement-${effectiveYear}`} />
+            <DataTable columns={tableCols} data={filteredCurrent} searchPlaceholder="Search state in table..." exportFilename={`procurement-${effectiveYear}`} />
           </Panel>
         </div>
       </div>
@@ -167,7 +165,7 @@ export default function ProcurementPage() {
       <div className="row-eq">
         <div className="col-md-6 col-xs-12">
           <Panel title="Year-wise Comparison of MSP" sub="Minimum Support Price evolution for Wheat, Paddy, and Coarse Grains" badge="Rs. / Qtl">
-            <DataTable columns={mspCols} data={mspRows} searchPlaceholder="Search crop or year..." filename="msp-comparison" />
+            <DataTable columns={mspCols} data={mspRows} searchPlaceholder="Search crop or year..." exportFilename="msp-comparison" />
           </Panel>
         </div>
         <div className="col-md-6 col-xs-12">
@@ -182,7 +180,7 @@ export default function ProcurementPage() {
               ]}
               data={incidentalRows}
               searchPlaceholder="Filter year..."
-              filename="procurement-incidentals"
+              exportFilename="procurement-incidentals"
             />
           </Panel>
         </div>

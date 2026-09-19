@@ -1,4 +1,3 @@
-import React from "react";
 import { PageHeader, SectionTitle, KpiGrid, Panel, Loading, ErrorBox, DataTable } from "../components/ui/index.js";
 import { BarChart, LineChart, DoughnutChart, GOV_PALETTE } from "../components/charts/index.js";
 import { useDatasets } from "../hooks/useDataset.js";
@@ -108,17 +107,17 @@ export default function TradePage() {
       <div className="row-eq">
         <div className="col-md-4 col-xs-12">
           <Panel title="Export &amp; Import History" sub="Central Pool exports/imports" badge="Lakh Tons">
-            <DataTable columns={tableCols} data={tradeRows} searchPlaceholder="Search year..." filename="export-import-foodgrains" />
+            <DataTable columns={tableCols} data={tradeRows} searchPlaceholder="Search year..." exportFilename="export-import-foodgrains" />
           </Panel>
         </div>
         <div className="col-md-4 col-xs-12">
           <Panel title="International Export Prices" sub="Monthly export price quotations by variety and port" badge="USD / Ton">
-            <DataTable columns={priceCols} data={exportPrices} searchPlaceholder="Search variety or month..." filename="export-prices" />
+            <DataTable columns={priceCols} data={exportPrices} searchPlaceholder="Search variety or month..." exportFilename="export-prices" />
           </Panel>
         </div>
         <div className="col-md-4 col-xs-12">
           <Panel title="OMSS Domestic Sales" sub="Open Market Sales Scheme wheat &amp; rice sales" badge="Lakh MT">
-            <DataTable columns={omssCols} data={omssRows} searchPlaceholder="Search year..." filename="omss-domestic-sales" />
+            <DataTable columns={omssCols} data={omssRows} searchPlaceholder="Search year..." exportFilename="omss-domestic-sales" />
           </Panel>
         </div>
       </div>

@@ -42,12 +42,5 @@ function getAllMetadata(req,res){res.json({generated_at:new Date().toISOString()
 function getGeoIndiaStates(req,res){ const geo = databaseService.getGeoJson("india-states"); if(!geo) return res.status(404).json({error:"India states geometry not found in database"}); res.json(geo); }
 function getKpis(req,res){try{res.json(datasetService.computeKpis(req.query.month))}catch(e){res.status(500).json({error:"KPI computation failed",detail:e.message})}}
 function getStateInfo(req,res){const info=datasetService.getStateInfo(req.params.name);if(!info)return res.status(404).json({error:`No consolidated data found for state: ${req.params.name}`});res.json(info)}
-function refresh(req,res){
-  const expected = process.env.ADMIN_REFRESH_TOKEN;
-  const supplied = req.get("x-admin-refresh-token");
-  if (!expected || supplied !== expected) return res.status(403).json({error:"Cache refresh is not authorised."});
-  datasetService.clearCache();
-  res.json({status:"ok",message:"Dataset cache cleared. Subsequent requests reload files.",refreshed_at:new Date().toISOString()});
-}
 function getHealth(req,res){res.json({service:config.app.name,status:"ok",version:config.app.version,environment:config.env,datasets:datasetService.loadRegistry().length,api_version:"v1"})}
-module.exports={getDatasets,getDatasetById,getDatasetQuery,exportDataset,getMetadata,getAllMetadata,getGeoIndiaStates,getKpis,getStateInfo,refresh,getHealth};
+module.exports={getDatasets,getDatasetById,getDatasetQuery,exportDataset,getMetadata,getAllMetadata,getGeoIndiaStates,getKpis,getStateInfo,getHealth};

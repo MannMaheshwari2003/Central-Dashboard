@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { PageHeader, SectionTitle, KpiGrid, Panel, Loading, ErrorBox, FilterBar, SearchBox, DataTable, PctBadge, RankPill } from "../components/ui/index.js";
 import { DoughnutChart, HBarChart, BarChart, GOV_PALETTE } from "../components/charts/index.js";
 import { useDatasets } from "../hooks/useDataset.js";
@@ -115,7 +115,7 @@ export default function NFSAPage() {
       <div className="row-eq">
         <div className="col-md-12 col-xs-12">
           <Panel title="NFSA Coverage Statement" sub="All States &amp; UTs, with national ranking and Fair Price Shops count" badge={`${tableRows.length} records`}>
-            <DataTable columns={tableCols} data={tableRows} searchPlaceholder="Search state..." filename="nfsa-coverage-statement" />
+            <DataTable columns={tableCols} data={tableRows} searchPlaceholder="Search state..." exportFilename="nfsa-coverage-statement" />
           </Panel>
         </div>
       </div>

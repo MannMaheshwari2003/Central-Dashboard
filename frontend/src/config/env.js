@@ -5,7 +5,4 @@
  */
 export const env = {
   apiBase: import.meta.env.VITE_API_BASE || "",
-  mode: import.meta.env.MODE,
-  isDev: import.meta.env.DEV,
-  isProd: import.meta.env.PROD,
 };

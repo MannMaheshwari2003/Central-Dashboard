@@ -13,9 +13,7 @@ module.exports = {
 
   paths: {
     root: ROOT_DIR,
-    data: path.join(ROOT_DIR, "data"),
     database: path.join(ROOT_DIR, "database", "food_pds.db"),
-        geoStates: path.join(ROOT_DIR, "data", "india_states.geojson"),
   },
 
   cors: {
@@ -27,7 +25,5 @@ module.exports = {
   app: {
     name: "Food & PDS Dashboard API",
     version: "5.0.0",
-    ministry: "Ministry of Consumer Affairs, Food & Public Distribution",
-    department: "Department of Food & Public Distribution",
   },
 };

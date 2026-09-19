@@ -1,4 +1,3 @@
-import React from "react";
 import { downloadCsv, slugify } from "../../utils/csv.js";
 
 /**

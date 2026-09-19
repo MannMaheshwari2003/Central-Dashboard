@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader, SectionTitle, KpiGrid, Panel, Loading, ErrorBox, FilterBar, FilterSelect, DataTable, DetailRow, Pill } from "../components/ui/index.js";
-import { LineChart, HBarChart, DoughnutChart, GOV_PALETTE } from "../components/charts/index.js";
+import { LineChart, DoughnutChart, GOV_PALETTE } from "../components/charts/index.js";
 import { api } from "../api/client.js";
 import { useAsync } from "../hooks/useAsync.js";
 import { fmt } from "../utils/format.js";

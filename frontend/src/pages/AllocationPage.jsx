@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { PageHeader, SectionTitle, KpiGrid, Panel, Loading, ErrorBox, FilterBar, FilterSelect, DataTable, PctBadge } from "../components/ui/index.js";
-import { BarChart, DoughnutChart, HBarChart, GOV_PALETTE } from "../components/charts/index.js";
+import { BarChart, GOV_PALETTE } from "../components/charts/index.js";
 import { useDatasets } from "../hooks/useDataset.js";
 import { fmt } from "../utils/format.js";
 
@@ -25,7 +25,7 @@ export default function AllocationPage() {
   const filteredComp = schemeFilter === "all" ? compRows : compRows.filter((r) => r.scheme === schemeFilter);
 
   const yearTotals = compYears.map((y) => {
-    const rowsY = compRows.filter(r => r.year === y);
+    const rowsY = filteredComp.filter(r => r.year === y);
     const alloc = rowsY.reduce((s, r) => s + (r.allocation_lakh_tons || 0), 0);
     const off = rowsY.reduce((s, r) => s + (r.offtake_lakh_tons || 0), 0);
     return { year: y, alloc, off };
@@ -108,13 +108,13 @@ export default function AllocationPage() {
               ]}
               data={annualSummary}
               searchPlaceholder="Search scheme..."
-              filename="annual-allocation-summary"
+              exportFilename="annual-allocation-summary"
             />
           </Panel>
         </div>
         <div className="col-md-6 col-xs-12">
           <Panel title="Welfare Institutions Allocation &amp; Offtake" sub="Hostels &amp; Welfare Institutions scheme performance by state" badge="Thousand Tons">
-            <DataTable columns={welfareCols} data={welfareRows} searchPlaceholder="Search state..." filename="welfare-institutions-allocation" />
+            <DataTable columns={welfareCols} data={welfareRows} searchPlaceholder="Search state..." exportFilename="welfare-institutions-allocation" />
           </Panel>
         </div>
       </div>
@@ -127,7 +127,7 @@ export default function AllocationPage() {
       <div className="row-eq">
         <div className="col-md-12 col-xs-12">
           <Panel title={`Special Allocations — ${festYear}`} sub="Additional foodgrain allocations for festivals, floods, and calamity relief" badge="Thousand Tons">
-            <DataTable columns={festCols} data={festRows} searchPlaceholder="Search state or remarks..." filename={`festivals-calamity-${festYear}`} />
+            <DataTable columns={festCols} data={festRows} searchPlaceholder="Search state or remarks..." exportFilename={`festivals-calamity-${festYear}`} />
           </Panel>
         </div>
       </div>

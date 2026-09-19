@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { PageHeader, SectionTitle, KpiGrid, Panel, Loading, ErrorBox, FilterBar, FilterSelect, SearchBox, DataTable, PctBadge } from "../components/ui/index.js";
 import { HBarChart, DoughnutChart, GOV_PALETTE } from "../components/charts/index.js";
 import { useDatasets } from "../hooks/useDataset.js";
 import { fmt } from "../utils/format.js";
 
-const IDS = ["offtake_distribution", "other_welfare_schemes_offtake", "portability_transactions"];
+const IDS = ["offtake_distribution", "portability_transactions"];
 
 export default function DistributionPage() {
   const { data: ds, error, loading } = useDatasets(IDS);
@@ -16,7 +16,6 @@ export default function DistributionPage() {
   if (loading || !ds) return <Loading label="Loading distribution data…" />;
 
   const allOfftakeRows = ds.offtake_distribution?.data || ds.offtake_distribution?.rows || [];
-  const otherWelfareRows = ds.other_welfare_schemes_offtake?.data || ds.other_welfare_schemes_offtake?.rows || [];
   const portRows = ds.portability_transactions?.data || ds.portability_transactions?.rows || [];
 
   const ptype = period === "for_month" ? "month" : "upto_month";
@@ -153,7 +152,7 @@ export default function DistributionPage() {
       <div className="row-eq">
         <div className="col-md-12 col-xs-12">
           <Panel title="State-wise Offtake &amp; Distribution Details" sub="Allocations, lifting, and distribution figures" badge="Thousand Tons">
-            <DataTable columns={tableCols} data={tableRows} searchPlaceholder="Search state..." filename={`distribution-${period}`} />
+            <DataTable columns={tableCols} data={tableRows} searchPlaceholder="Search state..." exportFilename={`distribution-${period}`} />
           </Panel>
         </div>
       </div>
@@ -162,7 +161,7 @@ export default function DistributionPage() {
       <div className="row-eq">
         <div className="col-md-12 col-xs-12">
           <Panel title="Portability Transactions &amp; Distribution (June 2026)" sub="Inter-state and Intra-state transactions with Aadhaar authentication" badge="Transactions / MT">
-            <DataTable columns={portCols} data={portRows} searchPlaceholder="Search state..." filename="portability-transactions" />
+            <DataTable columns={portCols} data={portRows} searchPlaceholder="Search state..." exportFilename="portability-transactions" />
           </Panel>
         </div>
       </div>

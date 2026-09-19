@@ -1,8 +1,23 @@
-import React from "react";
+export function KpiCard({ label, value, unit, icon, accent, foot, footDir, breakdown, onClick }) {
+  const hasBreakdown = Array.isArray(breakdown) && breakdown.length > 0;
+  const isClickable = typeof onClick === "function";
 
-export function KpiCard({ label, value, unit, icon, accent, foot, footDir }) {
+  const handleKeyDown = (e) => {
+    if (isClickable && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
-    <div className={"kpi-card accent-" + (accent || "navy")}>
+    <div
+      className={`kpi-card accent-${accent || "navy"}${isClickable ? " kpi-card-interactive" : ""}`}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      title={isClickable ? `Click to inspect ${label} analytics & trends` : undefined}
+    >
       <div className="kpi-top">
         <div className="kpi-label">{label}</div>
         {icon && (
@@ -11,10 +26,34 @@ export function KpiCard({ label, value, unit, icon, accent, foot, footDir }) {
           </div>
         )}
       </div>
-      <div className="kpi-value">
-        {value} {unit && <small>{unit}</small>}
+
+      <div className={hasBreakdown ? "kpi-content kpi-content-split" : "kpi-content"}>
+        <div className="kpi-primary">
+          <div className="kpi-value">
+            {value} {unit && <small>{unit}</small>}
+          </div>
+        </div>
+
+        {hasBreakdown && (
+          <div className="kpi-breakdown">
+            {breakdown.map((item) => (
+              <div className="kpi-breakdown-item" key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      {foot && <div className={"kpi-foot " + (footDir || "")}>{foot}</div>}
+
+      <div className="kpi-bottom-row">
+        {foot && <div className={"kpi-foot " + (footDir || "")}>{foot}</div>}
+        {isClickable && (
+          <span className="kpi-interactive-hint">
+            <i className="fa fa-line-chart"></i> View
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,9 +1,6 @@
 const express = require("express");
-const { execSync } = require("child_process");
-const path = require("path");
 const controller = require("../controllers/dataset.controller");
 const analytics = require("../services/analytics.service");
-const config = require("../config");
 const router = express.Router();
 
 router.get("/datasets", controller.getDatasets);
@@ -86,18 +83,5 @@ router.get("/analytics/insights", (req, res, next) => {
     next(e);
   }
 });
-
-router.post("/admin/reingest", (req, res, next) => {
-  try {
-    const scriptPath = path.join(config.paths.root, "scripts", "ingest_all_data.py");
-    execSync(`python "${scriptPath}"`, { stdio: "pipe" });
-    const months = analytics.getAvailableMonths();
-    res.json({ status: "success", message: "Database successfully re-ingested from source-data folder.", months });
-  } catch (e) {
-    res.status(500).json({ error: "Re-ingestion failed", detail: e.message });
-  }
-});
-
-router.post("/admin/cache/refresh", controller.refresh);
 
 module.exports = router;

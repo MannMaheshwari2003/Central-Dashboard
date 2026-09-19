@@ -1,6 +1,3 @@
-import React from "react";
-import { fmt } from "../../utils/format.js";
-
 /** Inline label/value row used inside detail cards (map, drill-downs). */
 export function DetailRow({ label, value, strong }) {
   return (

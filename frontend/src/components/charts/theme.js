@@ -21,8 +21,9 @@ export function baseOptions(type) {
         : { mode: "index", intersect: true },
     elements: {
       point: {
-        radius: line ? 3 : 0,
-        hoverRadius: line ? 7 : 5,
+        pointStyle: "circle",
+        radius: line ? 3.5 : 0,
+        hoverRadius: line ? 6.5 : 5,
         hoverBorderWidth: 2,
         hitRadius: 10,
       },
@@ -36,7 +37,10 @@ export function baseOptions(type) {
           font: { size: 12, family: "Noto Sans, Segoe UI, Arial, sans-serif", weight: "600" },
           padding: 12,
           usePointStyle: true,
-          pointStyleWidth: 9,
+          pointStyle: "rect",
+          boxWidth: 8,
+          boxHeight: 8,
+          pointStyleWidth: 8,
         },
       },
       tooltip: {
@@ -49,8 +53,11 @@ export function baseOptions(type) {
         borderColor: "rgba(255,255,255,.14)",
         borderWidth: 1,
         padding: 11,
-        cornerRadius: 7,
+        cornerRadius: 4,
         displayColors: true,
+        usePointStyle: true,
+        boxWidth: 8,
+        boxHeight: 8,
         titleFont: { size: 12.5, weight: "700" },
         bodyFont: { size: 12, weight: "500" },
         callbacks: {
